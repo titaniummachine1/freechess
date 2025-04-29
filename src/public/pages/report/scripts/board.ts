@@ -152,7 +152,7 @@ async function drawBoard(fen: string) {
     let fenBoard = fen.split(" ")[0];
     let x = boardFlipped ? 7 : 0, y = x;
 
-    let evaluation = reportResults?.positions[currentMoveIndex]?.topLines?.find(line => line.id == 1)?.evaluation;
+    let evaluation = reportResults?.positions[currentMoveIndex]?.topLines?.find((line: EngineLine) => line.id == 1)?.evaluation;
     
     for (let character of fenBoard) {
         if (character == "/") {
@@ -289,12 +289,12 @@ function traverseMoves(moveCount: number) {
     drawBoard(currentPosition?.fen ?? startingPositionFen);
     //console.log(currentPosition);
 
-    let topLine = currentPosition?.topLines?.find(line => line.id == 1);
+    let topLine = currentPosition?.topLines?.find((line: EngineLine) => line.id == 1);
     lastEvaluation = topLine?.evaluation ?? { type: "cp", value: 0 }
 
     const movedPlayer = getMovedPlayer();
 
-    let previousTopLine = positions[previousMoveIndex]?.topLines?.find(line => line.id == 1);
+    let previousTopLine = positions[previousMoveIndex]?.topLines?.find((line: EngineLine) => line.id == 1);
     var diff = (topLine?.evaluation?.value ?? 0) - (previousTopLine?.evaluation?.value ?? 0);
     console.log( (diff / 100).toFixed(2));
 

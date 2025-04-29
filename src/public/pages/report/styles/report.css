@@ -44,6 +44,23 @@
     position: relative;
 }
 
+#play-rankings-title {
+    background-color: var(--primary-color);
+    border-radius: 0px;
+    width: 90%;
+    text-align: center;
+    border: 2px solid var(--border-color);
+    height: 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin-top: 0px;
+    border-top: none;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+}
+
 .accuracyDiv {
     display: flex;
     justify-content: center;
@@ -64,6 +81,16 @@
 }
 
 #black-accuracy {
+    background-color: rgb(0, 0, 0, 0.6);
+    color: white;
+}
+
+#white-play-ranking {
+    background-color: rgb(255, 255, 255, 1);
+    color: black;
+}
+
+#black-play-ranking {
     background-color: rgb(0, 0, 0, 0.6);
     color: white;
 }
@@ -205,6 +232,7 @@
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     margin-bottom: 10px;
+    border-top: none;
 }
 /*
     EVALUATION GRAPH

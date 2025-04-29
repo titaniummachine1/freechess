@@ -20,7 +20,7 @@ async function drawEvaluationGraph() {
     graphCanvas.width = desiredGraphWidth;
     graphCanvas.height = graphHeight;
 
-    topLines = positions.map(position => position?.topLines?.find(line => line.id == 1));
+    topLines = positions.map(position => position?.topLines?.find((line: EngineLine) => line.id == 1));
 
     let cumulativeWidth = 0;
 

@@ -18,4 +18,16 @@ export default interface Report {
         black: number
     }
     */
+    
+    // Add Average Move Rankings
+    averageMoveRankings?: { 
+        white: number | null;
+        black: number | null;
+    } | null;
+    
+    // Add Play Rankings
+    playRankings?: { 
+        white: number | null;
+        black: number | null;
+    } | null;
 }

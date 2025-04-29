@@ -1,6 +1,23 @@
 let ongoingEvaluation = false;
 
+// Remove redundant interface definition
+/*
+interface Report {
+    accuracies: {
+        white: number;
+        black: number;
+    };
+    classifications: any; 
+    positions: any[];     
+    averageMoveRankings: { 
+        white: number | null;
+        black: number | null;
+    } | null;
+}
+*/
+
 let evaluatedPositions: Position[] = [];
+// Assuming 'Report' type is available from types.ts or similar
 let reportResults: Report | undefined;
 
 function logAnalysisInfo(message: string) {
@@ -225,6 +242,26 @@ function loadReportCards() {
         $("#white-accuracy").html(`${reportResults.accuracies.white.toFixed(1)}%`);
         $("#black-accuracy").html(`${reportResults.accuracies.black.toFixed(1)}%`);
         
+        // Update Average Move Ranking display
+        if (reportResults.averageMoveRankings) {
+            $("#white-average-ranking").html(`${reportResults.averageMoveRankings.white ?? '?'}`);
+            $("#black-average-ranking").html(`${reportResults.averageMoveRankings.black ?? '?'}`);
+        } else {
+            // Display placeholders if data is missing
+            $("#white-average-ranking").html('1900'); // Placeholder
+            $("#black-average-ranking").html('1900'); // Placeholder
+        }
+        
+        // Update Play Ranking display
+        if (reportResults.playRankings) {
+            $("#white-play-ranking").html(`${reportResults.playRankings.white ?? '?'}`);
+            $("#black-play-ranking").html(`${reportResults.playRankings.black ?? '?'}`);
+        } else {
+            // Display placeholders if data is missing
+            $("#white-play-ranking").html('1750'); // Placeholder
+            $("#black-play-ranking").html('1750'); // Placeholder
+        }
+
         // Remove Maia Ratings update
         /* 
         if (reportResults.maiaRatings) { 
