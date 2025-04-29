@@ -2,6 +2,7 @@ const engineSelector = document.getElementById('engine-selector') as HTMLSelectE
 const settingsIcon = document.getElementById('review-settings-button'); // Assuming this is the gear icon button
 const settingsPanel = document.getElementById('depth-container');
 const arrowsCheckbox = document.getElementById('suggestion-arrows-setting') as HTMLInputElement;
+const depthCounter = document.getElementById('depth-counter');
 
 const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
     'sf17': {
@@ -21,6 +22,8 @@ const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
 const DEFAULT_ENGINE_KEY = 'sf17';
 const ENGINE_STORAGE_KEY = 'selectedEnginePath';
 const ARROWS_STORAGE_KEY = 'suggestionArrowsEnabled';
+const DEPTH_STORAGE_KEY = 'analysisDepth';
+const DEFAULT_DEPTH = 18;
 
 function populateEngineSelector() {
     if (!engineSelector) return;
@@ -67,10 +70,44 @@ function saveArrowsSetting() {
     localStorage.setItem(ARROWS_STORAGE_KEY, arrowsCheckbox.checked.toString());
 }
 
+// Function to update the visual depth counter (from analysis.ts, slightly modified)
+function updateDepthCounterDisplay(depth: number) {
+    if (!depthCounter) return;
+    if (depth <= 14) {
+        depthCounter.innerHTML = depth + `|<i class="fa-solid fa-bolt" style="color: #ffffff;"></i>`;
+    } else if (depth <= 17) {
+        depthCounter.innerHTML = depth + `|<i class="fa-solid fa-wind" style="color: #ffffff;"></i>`;
+    } else {
+        depthCounter.innerHTML = depth + `|<i class="fa-solid fa-hourglass-half" style="color: #ffffff;"></i>`;
+    }
+}
+
+// Added functions for depth setting
+function loadDepthSetting() {
+    const slider = document.getElementById('depth-slider') as HTMLInputElement;
+    if (!slider) return;
+    const savedValue = localStorage.getItem(DEPTH_STORAGE_KEY);
+    const depth = savedValue ? parseInt(savedValue) : DEFAULT_DEPTH;
+    slider.value = depth.toString();
+    updateDepthCounterDisplay(depth); // Update counter display on load
+    // Trigger input event to update slider background gradient (styles.ts relies on this)
+    slider.dispatchEvent(new Event('input'));
+}
+
+function saveDepthSetting() {
+    const slider = document.getElementById('depth-slider') as HTMLInputElement;
+    if (!slider) return;
+    const depth = parseInt(slider.value);
+    localStorage.setItem(DEPTH_STORAGE_KEY, depth.toString());
+    // No need to call updateDepthCounterDisplay here, the 'input' event listener 
+    // (handled in analysis.ts or styles.ts) already takes care of updating the display.
+}
+
 // Initial setup
 document.addEventListener('DOMContentLoaded', () => {
     populateEngineSelector();
     loadArrowsSetting();
+    loadDepthSetting();
 
     if (engineSelector) {
         engineSelector.addEventListener('change', saveEngineSelection);
@@ -78,6 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (arrowsCheckbox) {
         arrowsCheckbox.addEventListener('input', saveArrowsSetting);
+    }
+
+    // Add listener to save depth setting when changed
+    // Get slider for adding the listener
+    const sliderForListener = document.getElementById('depth-slider') as HTMLInputElement;
+    if (sliderForListener) {
+        sliderForListener.addEventListener('change', saveDepthSetting);
     }
 
     // REMOVE the logic to show/hide the settings panel
