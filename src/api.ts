@@ -11,9 +11,17 @@ import { ParseRequestBody, ReportRequestBody } from "./lib/types/RequestBody";
 
 const router = Router();
 
+// --- Define LC0 and Weights Paths ---
 const lc0Dir = path.resolve("src/public/scripts/lc0-v0.31.2-windows-cpu-dnnl");
 const lc0Path = path.join(lc0Dir, "lc0.exe");
-const defaultWeightsPath = path.join(lc0Dir, "791556.pb.gz");
+
+// Define Maia weights directory
+const maiaWeightsDir = path.resolve("src/public/scripts/MaiaWeights");
+
+// Point to the strongest Maia weights file for testing
+const defaultWeightsPath = path.join(maiaWeightsDir, "maia-1900.pb.gz");
+// Original default: const defaultWeightsPath = path.join(lc0Dir, "791556.pb.gz");
+// --- End Define Paths ---
 
 router.post("/parse", async (req, res) => {
 
