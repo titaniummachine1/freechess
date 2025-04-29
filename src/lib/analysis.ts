@@ -390,17 +390,27 @@ async function analyse(
         classifications[moveColour][position.classification!] += 1;
     }
 
-    // Return complete report, including Maia ratings
+    // Calculate average move rankings
+    const averageMoveRankings = calculateAverageMoveRankings(positions);
+
+    // Return complete report
     return {
         accuracies: {
             white: accuracies.white.current / accuracies.white.maximum * 100,
             black: accuracies.black.current / accuracies.black.maximum * 100
         },
         classifications,
-        positions: positions
-        // maiaRatings: maiaRatings // Remove Maia ratings
+        positions,
+        averageMoveRankings,
+        // Play rankings will be added by the front-end after a call to /get_play_rankings
+        playRankings: null
     };
+}
 
+// Helper function to calculate average move rankings
+function calculateAverageMoveRankings(positions: EvaluatedPosition[]) {
+    // ... existing code if any, or implement it ...
+    return null; // Replace with actual implementation if needed
 }
 
 export default analyse;

@@ -335,20 +335,18 @@ function loadReportCards() {
 }
 
 async function generateReportFromEvaluations() {
-    // Removed the log/message setting here
+    // Set initial messages
     $("#status-message").css("display", "block");
     
-    // --- Run Basic Maia Check (for testing) ---
+    // --- Run Basic Maia Check for Play Rankings ---
     try {
         await runBasicMaiaCheck(evaluatedPositions);
     } catch (error) {
         console.error("Basic Maia check failed:", error);
-        // Optionally log error to user or decide if it should block report generation
-        logAnalysisError("Basic Maia check step failed. Report generation continuing without it.");
-        // For now, we continue even if Maia check fails.
+        logAnalysisError("Maia analysis step failed. Report generation continuing without it.");
     }
     // --- End Basic Maia Check ---
-
+    
     try {
         // Set messages just before fetch
         logAnalysisInfo("Submitting analysis results...");
@@ -374,6 +372,43 @@ async function generateReportFromEvaluations() {
         }
 
         reportResults = analysisResult.report;
+        
+        // Retrieve play rankings from localStorage that were calculated during Maia analysis
+        try {
+            logAnalysisInfo("Processing play rankings...");
+            
+            const storedRankings = localStorage.getItem('playRankings');
+            if (storedRankings && reportResults) {
+                reportResults.playRankings = JSON.parse(storedRankings);
+                console.log("Play rankings received:", reportResults.playRankings);
+            } else {
+                // Use API if localStorage data isn't available
+                const playRankingsResponse = await fetch("/api/get_play_rankings", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ 
+                        positions: evaluatedPositions
+                    }),
+                });
+                
+                if (playRankingsResponse.ok && reportResults) {
+                    const playRankingsResult = await playRankingsResponse.json();
+                    // Integrate play rankings into the report
+                    if (playRankingsResult.playRankings) {
+                        reportResults.playRankings = playRankingsResult.playRankings;
+                        console.log("Play rankings received:", reportResults.playRankings);
+                    }
+                } else {
+                    console.warn("Failed to get play rankings, using default values");
+                }
+            }
+        } catch (error) {
+            console.error("Error processing play rankings:", error);
+            // Continue with report even if play rankings fail
+        }
+        
         loadReportCards();
         isNewGame = true;
     } catch {
@@ -383,44 +418,124 @@ async function generateReportFromEvaluations() {
 
 // --- Basic Maia Check Implementation (using Backend API) ---
 async function runBasicMaiaCheck(positions: Position[]) {
-    logAnalysisInfo("Running basic LC0 check (nodes 1)...");
+    logAnalysisInfo("Running Maia analysis...");
     const totalMoves = positions.length - 1;
     let progress = 0;
 
+    // Track rankings for each player
+    const playerRankings = {
+        white: { totalRanking: 0, moveCount: 0 },
+        black: { totalRanking: 0, moveCount: 0 }
+    };
+
+    // Available Maia weight ratings - from strongest to weakest
+    const weightRatings = [1900, 1800, 1700, 1600, 1500, 1400, 1300, 1200, 1100];
+
     for (let i = 1; i < positions.length; i++) {
         const previousFen = positions[i - 1].fen;
+        const position = positions[i];
         progress++;
         const progressPercent = ((progress / totalMoves) * 100).toFixed(1);
-        logAnalysisInfo(`Running basic LC0 check... (${progressPercent}%) Move ${progress}/${totalMoves}`);
+        logAnalysisInfo(`Running Maia analysis... (${progressPercent}%) Move ${progress}/${totalMoves}`);
 
-        try {
-            const response = await fetch("/api/lc0_get_best_move", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ fen: previousFen }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            if (result.bestMove) {
-                console.log(`[Basic LC0 Check] Move ${i} (FEN: ${previousFen}), LC0 Best: ${result.bestMove}`);
-            } else {
-                console.warn(`[Basic LC0 Check] Move ${i} (FEN: ${previousFen}), LC0 returned no best move.`);
-            }
-        } catch (error) {
-            console.error(`[Basic LC0 Check] Error during backend LC0 analysis for move ${i} (FEN: ${previousFen}):`, error);
-            // Optionally break the loop or log specific UI error
-            logAnalysisError(`LC0 backend check failed for move ${i}. Stopping LC0 check.`);
-            break; // Stop the check if backend fails
+        // Skip positions without moves
+        if (!position.move || !position.move.uci) {
+            continue;
         }
+
+        const playerColor = position.fen.includes(" b ") ? "white" : "black";
+        const actualMoveUci = position.move.uci;
+        const moveSan = position.move.san;
+        let moveRanking = null;
+
+        // Try each weight rating from strongest to weakest
+        for (const rating of weightRatings) {
+            try {
+                const multipvValue = Math.min(Math.floor(rating / 100), 19); // cap at 19
+                console.log(`Checking move ${moveSan} with Maia-${rating} (multipv: ${multipvValue})...`);
+                
+                const response = await fetch("/api/lc0_get_best_move", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ 
+                        fen: previousFen,
+                        multipv: multipvValue,
+                        weightRating: rating
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.pvLines && result.pvLines.length > 0) {
+                    // Find the move's rank in the PV lines
+                    let foundRank = null;
+                    
+                    for (const pvLine of result.pvLines) {
+                        const moveMatch = pvLine.match(/multipv (\d+).*? pv ([a-h][1-8][a-h][1-8][qrbn]?)/i);
+                        if (moveMatch && moveMatch.length >= 3) {
+                            const rank = parseInt(moveMatch[1], 10);
+                            const moveUci = moveMatch[2];
+                            
+                            if (moveUci === actualMoveUci) {
+                                foundRank = rank;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (foundRank !== null) {
+                        // Apply penalty based on rank (100 points per rank position after 1st)
+                        const penalty = (foundRank - 1) * 100;
+                        moveRanking = Math.max(100, rating - penalty);
+                        console.log(`Move ${moveSan} ranked by Maia-${rating} at position ${foundRank}, final rating: ${moveRanking}`);
+                        break; // Found the highest weight that suggests this move
+                    } else {
+                        console.log(`Move ${moveSan} not suggested by Maia-${rating}`);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error analyzing move ${i} with Maia-${rating}:`, error);
+                // Continue to next weight file on error
+            }
+        }
+
+        // If no model suggested this move, assign minimum rating
+        if (moveRanking === null) {
+            moveRanking = 100; // Minimum rating
+            console.log(`Move ${moveSan} not suggested by any Maia model, assigning minimum: 100`);
+        }
+
+        // Add to player's total
+        playerRankings[playerColor].totalRanking += moveRanking;
+        playerRankings[playerColor].moveCount++;
+        console.log(`Current ${playerColor} ranking: ${playerRankings[playerColor].totalRanking}/${playerRankings[playerColor].moveCount}`);
     }
-    logAnalysisInfo("Basic LC0 check complete."); // Log completion only if loop finishes
+    
+    // Calculate average rankings
+    const whiteAvgRanking = playerRankings.white.moveCount > 0 
+        ? Math.round(playerRankings.white.totalRanking / playerRankings.white.moveCount)
+        : null;
+        
+    const blackAvgRanking = playerRankings.black.moveCount > 0 
+        ? Math.round(playerRankings.black.totalRanking / playerRankings.black.moveCount)
+        : null;
+    
+    // Store rankings for later retrieval
+    const finalRankings = {
+        white: whiteAvgRanking,
+        black: blackAvgRanking
+    };
+    
+    localStorage.setItem('playRankings', JSON.stringify(finalRankings));
+    console.log(`Final play rankings - White: ${whiteAvgRanking}, Black: ${blackAvgRanking}`);
+    
+    logAnalysisInfo("Maia analysis complete."); // Log completion only if loop finishes
 }
 // --- End Basic Maia Check ---
 
