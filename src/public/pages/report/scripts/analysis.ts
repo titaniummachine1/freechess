@@ -87,22 +87,25 @@ async function evaluate() {
 
     $("#secondary-message").html("It can take around a minute to process a full game.");
 
+    // Define placeCutoff once before the loop
+    function placeCutoff(index: number) {
+        // Get the previous position using the index
+        let lastPosition = positions[index - 1];
+        if (!lastPosition) return;
+
+        let cutoffWorker = new Stockfish();
+        cutoffWorker
+            .evaluate(lastPosition.fen, depth)
+            .then((engineLines) => {
+                lastPosition.cutoffEvaluation = engineLines.find(
+                    (line) => line.id == 1,
+                )?.evaluation ?? { type: "cp", value: 0 };
+            });
+    }
+
     // Fetch cloud evaluations where possible
-    for (let position of positions) {
-        function placeCutoff() {
-            let lastPosition = positions[positions.indexOf(position) - 1];
-            if (!lastPosition) return;
-
-            let cutoffWorker = new Stockfish();
-            cutoffWorker
-                .evaluate(lastPosition.fen, depth)
-                .then((engineLines) => {
-                    lastPosition.cutoffEvaluation = engineLines.find(
-                        (line) => line.id == 1,
-                    )?.evaluation ?? { type: "cp", value: 0 };
-                });
-        }
-
+    // Use forEach to get index easily
+    for (const [index, position] of positions.entries()) {
         let queryFen = position.fen.replace(/\s/g, "%20");
         let cloudEvaluationResponse;
         try {
@@ -113,13 +116,20 @@ async function evaluate() {
                 },
             );
 
-            if (!cloudEvaluationResponse) break;
+            if (!cloudEvaluationResponse) {
+                // Pass the current index to placeCutoff
+                placeCutoff(index);
+                break;
+            }
         } catch {
+            // Pass the current index to placeCutoff
+            placeCutoff(index);
             break;
         }
 
         if (!cloudEvaluationResponse.ok) {
-            placeCutoff();
+            // Pass the current index to placeCutoff
+            placeCutoff(index);
             break;
         }
 
@@ -151,7 +161,7 @@ async function evaluate() {
         });
 
         if (position.topLines?.length != 2) {
-            placeCutoff();
+            placeCutoff(index);
             break;
         }
 

@@ -41,6 +41,11 @@ export function getAttackers(fen: string, square: Square): InfluencingPiece[] {
     let board = new Chess(fen);
     let piece = board.get(square);
 
+    // If no piece on the square, it cannot have attackers
+    if (!piece) {
+        return [];
+    }
+
     // Set colour to move to opposite of attacked piece
     board.load(fen
         .replace(/(?<= )(?:w|b)(?= )/g, piece.color == "w" ? "b" : "w")
@@ -113,6 +118,12 @@ export function getDefenders(fen: string, square: Square) {
 
     let board = new Chess(fen);
     let piece = board.get(square);
+
+    // If no piece, cannot have defenders
+    if (!piece) {
+        return [];
+    }
+
     let testAttacker = getAttackers(fen, square)[0];
 
     // If there is an attacker we can test capture the piece with
@@ -165,6 +176,15 @@ export function isPieceHanging(lastFen: string, fen: string, square: Square) {
     let lastPiece = lastBoard.get(square);
     let piece = board.get(square);
 
+    // If there's no piece now, it's not hanging
+    if (!piece) {
+        return false;
+    }
+    // If there was no piece before, but is now, it wasn't a capture, so not hanging
+    if (!lastPiece) {
+        return false;
+    }
+
     let attackers = getAttackers(fen, square);
     let defenders = getDefenders(fen, square);
 
@@ -177,7 +197,7 @@ export function isPieceHanging(lastFen: string, fen: string, square: Square) {
     // minor piece, it was a favourable rook exchange, so rook not hanging
     if (
         piece.type == "r"
-        && pieceValues[lastPiece.type] == 3 
+        && pieceValues[lastPiece.type] == 3
         && attackers.every(atk => pieceValues[atk.type] == 3)
         && attackers.length == 1
     ) {
@@ -198,7 +218,7 @@ export function isPieceHanging(lastFen: string, fen: string, square: Square) {
         // If taking the piece even though it has more attackers than defenders
         // would be a sacrifice in itself, not hanging
         if (
-            pieceValues[piece.type] < minAttackerValue 
+            pieceValues[piece.type] < minAttackerValue
             && defenders.some(dfn => pieceValues[dfn.type] < minAttackerValue)
         ) {
             return false;
