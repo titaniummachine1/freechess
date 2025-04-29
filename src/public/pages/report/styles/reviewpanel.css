@@ -21,7 +21,7 @@
 
 @media (min-width: 1264px) {
     #review-panel {
-        grid-template-rows: 88% 12%;
+        grid-template-rows: 90% 10%;
     }
 }
 
@@ -39,7 +39,7 @@
 
 @media (max-height: 860px) {
     #review-panel {
-        grid-template-rows: 82% 18%;
+        grid-template-rows: 90% 10%;
     }
 }
 
@@ -63,7 +63,7 @@
     align-items: center;
     position: relative;
     width: 100%;
-    height: calc(100% - 69px);
+    height: calc(100% - 0px);
 }
 
 /*
@@ -116,7 +116,7 @@
 */
 #load-type-dropdown-container {
     position: absolute;
-    top: 60px;
+    top: 8px;
     right: 0px;
     width: 20%;
     height: 50px;
@@ -127,7 +127,7 @@
 @media (max-width: 1264px) and (min-width: 1031px) {
     #load-type-dropdown-container {
         position: absolute;
-        top: 55px;
+        top: 8px;
         right: 0px;
         width: 20%;
         height: 50px;
@@ -228,7 +228,38 @@
     background-color: var(--primary-color);
     color: white;
     text-shadow: 0px 1px 2px var(--border-color);
-    width: 90%;
+    align-self: start;
+    margin-left: 5%;
+    width: 80%;
+    border: 2px solid #4caf50;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+    box-shadow: 0px 5px 0px rgb(76, 175, 80, 0.6);
+}
+
+.review-button-container{
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+#review-settings-button{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 13px 30px;
+    border-radius: 10px;
+    font-size: 20px;
+    background-color: var(--primary-color);
+    color: white;
+    text-shadow: 0px 1px 2px var(--border-color);
+    align-self: start;
+    margin-right: 5%;
+    margin-left: 5px;
+    width: 20%;
     border: 2px solid #4caf50;
     cursor: pointer;
     outline: none;
@@ -248,6 +279,7 @@
 
 .big-depth-container {
     width: 90%;
+    margin-top: 12px;
     padding: 10px;
     color: white;
     display: flex;

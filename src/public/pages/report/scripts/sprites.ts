@@ -29,7 +29,7 @@ let pieceImages: {[key: string]: HTMLImageElement} = {};
 let pieceLoaders: Promise<HTMLImageElement>[] = [];
 
 for (let [ pieceId, pieceFenCharacter ] of Object.entries(pieceIds)) {
-    let pieceLoader = loadSprite(pieceId + ".svg");
+    let pieceLoader = loadSprite(pieceId + ".png");
 
     pieceLoader.then(image => {
         pieceImages[pieceFenCharacter] = image;
@@ -49,11 +49,12 @@ const classificationIcons: {[key: string]: HTMLImageElement | null} = {
     "mistake": null,
     "blunder": null,
     "forced": null,
-    "book": null
+    "book": null,
+    "checkmate": null
 };
 
 for (let classification in classificationIcons) {
-    loadSprite(classification + ".png").then(image => {
+    loadSprite(classification + ".svg").then(image => {
         classificationIcons[classification] = image;
     });
 }

@@ -87,49 +87,41 @@ async function evaluate() {
 
     $("#secondary-message").html("It can take around a minute to process a full game.");
 
-    // Define placeCutoff once before the loop
-    function placeCutoff(index: number) {
-        // Get the previous position using the index
-        let lastPosition = positions[index - 1];
-        if (!lastPosition) return;
-
-        let cutoffWorker = new Stockfish();
-        cutoffWorker
-            .evaluate(lastPosition.fen, depth)
-            .then((engineLines) => {
-                lastPosition.cutoffEvaluation = engineLines.find(
-                    (line) => line.id == 1,
-                )?.evaluation ?? { type: "cp", value: 0 };
-            });
-    }
-
     // Fetch cloud evaluations where possible
-    // Use forEach to get index easily
-    for (const [index, position] of positions.entries()) {
+    for (let position of positions) {
+        function placeCutoff(pos: Position) {
+            let lastPosition = positions[positions.indexOf(pos) - 1];
+            if (!lastPosition) return;
+
+            let cutoffWorker = new Stockfish();
+            cutoffWorker
+                .evaluate(lastPosition.fen, depth)
+                .then((engineLines) => {
+                    lastPosition.cutoffEvaluation = engineLines.find(
+                        (line) => line.id == 1,
+                    )?.evaluation ?? { type: "cp", value: 0 };
+                });
+        }
+
         let queryFen = position.fen.replace(/\s/g, "%20");
         let cloudEvaluationResponse;
+        let url = `https://lichess.org/api/cloud-eval?fen=${queryFen}&multiPv=2`;
+        console.log(url)
         try {
             cloudEvaluationResponse = await fetch(
-                `https://lichess.org/api/cloud-eval?fen=${queryFen}&multiPv=2`,
+                url,
                 {
                     method: "GET",
                 },
             );
 
-            if (!cloudEvaluationResponse) {
-                // Pass the current index to placeCutoff
-                placeCutoff(index);
-                break;
-            }
+            if (!cloudEvaluationResponse) break;
         } catch {
-            // Pass the current index to placeCutoff
-            placeCutoff(index);
             break;
         }
 
         if (!cloudEvaluationResponse.ok) {
-            // Pass the current index to placeCutoff
-            placeCutoff(index);
+            placeCutoff(position);
             break;
         }
 
@@ -161,7 +153,7 @@ async function evaluate() {
         });
 
         if (position.topLines?.length != 2) {
-            placeCutoff(index);
+            placeCutoff(position);
             break;
         }
 
@@ -347,6 +339,10 @@ async function report() {
         return logAnalysisError("Failed to generate report.");
     }
 }
+
+$("#review-settings-button").on("click", () => {
+    $("#depth-container").toggle();
+});
 
 $("#review-button").on("click", () => {
     isNewGame = true;

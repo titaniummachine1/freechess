@@ -1,14 +1,29 @@
+// Ensure no previous declarations remain above this line
+
 class Stockfish {
 
-    private worker = new Worker(
+   /* private worker = new Worker(
         typeof WebAssembly == "object"
-        ? "/static/scripts/stockfish-nnue-16.js"
-        : "/static/scripts/stockfish.js"
-    );
+        ? "/static/scripts/stockfish-17-single.js"
+        : "/static/scripts/stockfish-17-asm.js"
+    ); */
+
+    private worker: Worker;
+    private enginePath: string;
 
     depth = 0;
 
-    constructor() {
+    constructor(enginePath?: string) {
+        // Access the function via the window object
+        this.enginePath = enginePath || (window as any).getSelectedEnginePath();
+        try {
+            this.worker = new Worker(this.enginePath);
+        } catch (e) {
+            console.error(`Failed to load selected engine: ${this.enginePath}. Falling back.`, e);
+            // Fallback logic - use the ASM or a known good path
+            this.enginePath = '/static/scripts/stockfish-17-asm.js'; // Or stockfish.js
+            this.worker = new Worker(this.enginePath);
+        }
         this.worker.postMessage("uci");
         this.worker.postMessage("setoption name MultiPV value 2");
     }
@@ -77,8 +92,12 @@ class Stockfish {
 
             this.worker.addEventListener("error", () => {
                 // Terminate the current Stockfish, switch to Stockfish 11 as fallback engine
+                console.error(`Worker error for engine: ${this.enginePath}. Falling back to ASM.`);
                 this.worker.terminate();
-                this.worker = new Worker("/static/scripts/stockfish.js");
+                // Use a known fallback path directly
+                const fallbackPath = "/static/scripts/stockfish-17-asm.js"; // Or stockfish.js
+                this.worker = new Worker(fallbackPath);
+                this.enginePath = fallbackPath; // Update the current path
 
                 this.worker.postMessage("uci");
                 this.worker.postMessage("setoption name MultiPV value 2");

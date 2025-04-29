@@ -84,7 +84,7 @@
     </head>
 
     <body>
-        <div id="announcement">
+        <div id="announcement" style="display: none;">
             <div class="wise-words">
                 <b
                     >I pay to keep my app free for everyone. Any donations
@@ -203,13 +203,13 @@
             <div id="review-panel">
                 <div id="review-panel-main">
                     <div id="review-panel-wrapper">
-                        <h1 class="logo" id="review-panel-title" class="white">
+                        <!-- <h1 class="logo" id="review-panel-title" class="white">
                             <i
                                 class="knight fa-solid fa-chess-knight"
                                 style="color: #ffffff"
                             ></i
                             >Game Report
-                        </h1>
+                        </h1> -->
                         <div id="load-type-dropdown-container" class="white">
                             <select id="load-type-dropdown">
                                 <option value="pgn">PGN</option>
@@ -250,14 +250,58 @@
                                 ></i>
                             </button>
                         </div>
-
-                        <button id="review-button" class="analyse">
-                            <i
-                                class="mag fa-solid fa-magnifying-glass"
-                                style="color: #ffffff"
-                            ></i>
-                            <b>Analyse</b>
-                        </button>
+                        <div class="review-button-container">
+                            <button id="review-button" class="analyse">
+                                <i
+                                    class="mag fa-solid fa-magnifying-glass"
+                                    style="color: #ffffff"
+                                ></i>
+                                <b>Analyse</b>
+                            </button>
+                            <button id="review-settings-button" class="settings">
+                                <i
+                                    class="fa-solid fa-gear"
+                                    style="color: #ffffff"
+                                ></i>
+                            </button>
+                        </div>
+                        <div class="big-depth-container" id="depth-container" style="display: none;">
+                            <div class="engine-selector-container" style="margin-bottom: 10px;">
+                                <label for="engine-selector" class="white">Engine:</label>
+                                <select id="engine-selector" style="margin-left: 5px;">
+                                    <!-- Options will be populated by script -->
+                                </select>
+                            </div>
+                            <div class="settings-toggle-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <label class="white" for="suggestion-arrows-setting">Show Arrows:</label> 
+                                <label class="toggle" for="suggestion-arrows-setting">
+                                    <input id="suggestion-arrows-setting" type="checkbox" />
+                                    <div class="toggle__fill"></div>
+                                </label>
+                            </div>
+                            <span class="depthTitle" class="white">
+                                <i
+                                    class="gear fa-solid fa-gear"
+                                    style="color: #ffffff"
+                                ></i>
+                                <p>Depth</p>
+                            </span>
+                            <div id="depth-slider-container">
+                                <input
+                                    id="depth-slider"
+                                    type="range"
+                                    min="14"
+                                    max="20"
+                                    value="16"
+                                />
+                                <span id="depth-counter" class="white"
+                                    >16|<i
+                                        class="fa-solid fa-wind"
+                                        style="color: #ffffff"
+                                    ></i
+                                ></span>
+                            </div>
+                        </div>
 
                         <progress
                             id="evaluation-progress-bar"
@@ -321,43 +365,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="big-depth-container">
-                        <span class="depthTitle" class="white">
-                            <i
-                                class="gear fa-solid fa-gear"
-                                style="color: #ffffff"
-                            ></i>
-                            <p>Depth</p>
-                        </span>
-                        <div class="badboystiff">
-                            <span>Arrows|</span>
-                            <label
-                                class="toggle"
-                                for="suggestion-arrows-setting"
-                            >
-                                <input
-                                    id="suggestion-arrows-setting"
-                                    type="checkbox"
-                                />
-                                <div class="toggle__fill"></div>
-                            </label>
-                        </div>
-                        <div id="depth-slider-container">
-                            <input
-                                id="depth-slider"
-                                type="range"
-                                min="14"
-                                max="20"
-                                value="16"
-                            />
-                            <span id="depth-counter" class="white"
-                                >16|<i
-                                    class="fa-solid fa-wind"
-                                    style="color: #ffffff"
-                                ></i
-                            ></span>
-                        </div>
-                    </div>
+                    
                 </div>
 
                 <div id="review-panel-toolbar">
@@ -404,14 +412,14 @@
                             data-tooltip="Save"
                         ></i>
                     </div>
-                    <div class="footer white privacyPolicyThingy">
-                        A website by wintrcat
-                        <a href="/privacy">Privacy Policy</a>
-                    </div>
+                    
                 </div>
             </div>
         </div>
-
+        <div class="footer white privacyPolicyThingy">
+            A website by wintrcat
+            <a href="/privacy">Privacy Policy</a>
+        </div>
         <div id="game-select-menu-container"></div>
 
         <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -428,6 +436,7 @@
         <script src="/static/pages/report/scripts/engine.js"></script>
         <script src="/static/pages/report/scripts/analysis.js"></script>
 
+        <script src="/static/pages/report/scripts/settings.js"></script>
         <script src="/static/pages/report/scripts/styles.js"></script>
     </body>
 </html>

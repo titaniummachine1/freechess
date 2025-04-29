@@ -41,14 +41,9 @@ export function getAttackers(fen: string, square: Square): InfluencingPiece[] {
     let board = new Chess(fen);
     let piece = board.get(square);
 
-    // If no piece on the square, it cannot have attackers
-    if (!piece) {
-        return [];
-    }
-
     // Set colour to move to opposite of attacked piece
     board.load(fen
-        .replace(/(?<= )(?:w|b)(?= )/g, piece.color == "w" ? "b" : "w")
+        .replace(/(?<= )(?:w|b)(?= )/g, piece ? (piece.color == "w" ? "b" : "w") : "w")
         .replace(/ [a-h][1-8] /g, " - ")
     );
 
@@ -68,7 +63,8 @@ export function getAttackers(fen: string, square: Square): InfluencingPiece[] {
     // If there is an opposite king around the attacked piece add him as an attacker
     // if he is not the only attacker or it is a legal move for the king to capture it
     let oppositeKing: InfluencingPiece | undefined;
-    let oppositeColour = piece.color == "w" ? "b" : "w";
+    let oppositeColour = piece ? (piece.color == "w" ? "b" : "w") : "";
+    if (!piece) return attackers;
 
     let pieceCoordinate = getBoardCoordinates(square);
     for (let xOffset = -1; xOffset <= 1; xOffset++) {
@@ -118,11 +114,7 @@ export function getDefenders(fen: string, square: Square) {
 
     let board = new Chess(fen);
     let piece = board.get(square);
-
-    // If no piece, cannot have defenders
-    if (!piece) {
-        return [];
-    }
+    if (!piece) return [];
 
     let testAttacker = getAttackers(fen, square)[0];
 
@@ -176,20 +168,14 @@ export function isPieceHanging(lastFen: string, fen: string, square: Square) {
     let lastPiece = lastBoard.get(square);
     let piece = board.get(square);
 
-    // If there's no piece now, it's not hanging
-    if (!piece) {
-        return false;
-    }
-    // If there was no piece before, but is now, it wasn't a capture, so not hanging
-    if (!lastPiece) {
-        return false;
-    }
+    // If no piece on the square currently, it can't be hanging
+    if (!piece) return false;
 
     let attackers = getAttackers(fen, square);
     let defenders = getDefenders(fen, square);
 
     // If piece was just traded equally or better, not hanging
-    if (pieceValues[lastPiece.type] >= pieceValues[piece.type] && lastPiece.color != piece.color) {
+    if (lastPiece && piece && pieceValues[lastPiece.type] >= pieceValues[piece.type] && lastPiece.color != piece.color) {
         return false;
     }
 
@@ -197,7 +183,7 @@ export function isPieceHanging(lastFen: string, fen: string, square: Square) {
     // minor piece, it was a favourable rook exchange, so rook not hanging
     if (
         piece.type == "r"
-        && pieceValues[lastPiece.type] == 3
+        && lastPiece && pieceValues[lastPiece.type] == 3
         && attackers.every(atk => pieceValues[atk.type] == 3)
         && attackers.length == 1
     ) {
@@ -218,7 +204,7 @@ export function isPieceHanging(lastFen: string, fen: string, square: Square) {
         // If taking the piece even though it has more attackers than defenders
         // would be a sacrifice in itself, not hanging
         if (
-            pieceValues[piece.type] < minAttackerValue
+            pieceValues[piece.type] < minAttackerValue 
             && defenders.some(dfn => pieceValues[dfn.type] < minAttackerValue)
         ) {
             return false;
