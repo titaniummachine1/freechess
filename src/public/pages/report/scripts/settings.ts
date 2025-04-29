@@ -1,6 +1,7 @@
 const engineSelector = document.getElementById('engine-selector') as HTMLSelectElement;
 const settingsIcon = document.getElementById('review-settings-button'); // Assuming this is the gear icon button
 const settingsPanel = document.getElementById('depth-container');
+const arrowsCheckbox = document.getElementById('suggestion-arrows-setting') as HTMLInputElement;
 
 const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
     'sf17': {
@@ -18,7 +19,8 @@ const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
 };
 
 const DEFAULT_ENGINE_KEY = 'sf17';
-const STORAGE_KEY = 'selectedEnginePath';
+const ENGINE_STORAGE_KEY = 'selectedEnginePath';
+const ARROWS_STORAGE_KEY = 'suggestionArrowsEnabled';
 
 function populateEngineSelector() {
     if (!engineSelector) return;
@@ -36,28 +38,46 @@ function populateEngineSelector() {
     }
 
     // Load saved preference or default
-    const savedEnginePath = localStorage.getItem(STORAGE_KEY);
+    const savedEnginePath = localStorage.getItem(ENGINE_STORAGE_KEY);
     if (savedEnginePath && Object.values(AVAILABLE_ENGINES).some(e => e.path === savedEnginePath)) {
         engineSelector.value = savedEnginePath;
     } else {
         engineSelector.value = AVAILABLE_ENGINES[DEFAULT_ENGINE_KEY].path;
-        localStorage.setItem(STORAGE_KEY, engineSelector.value); // Save default if nothing was saved
+        localStorage.setItem(ENGINE_STORAGE_KEY, engineSelector.value);
     }
 }
 
 function saveEngineSelection() {
     if (!engineSelector) return;
-    localStorage.setItem(STORAGE_KEY, engineSelector.value);
+    localStorage.setItem(ENGINE_STORAGE_KEY, engineSelector.value);
     console.log(`Selected engine saved: ${engineSelector.value}`);
     // Optionally, trigger UI update or reload if necessary
+}
+
+// Added functions for arrow setting
+function loadArrowsSetting() {
+    if (!arrowsCheckbox) return;
+    const savedValue = localStorage.getItem(ARROWS_STORAGE_KEY);
+    // Default to true (checked) if no setting saved
+    arrowsCheckbox.checked = savedValue === null ? true : savedValue === 'true';
+}
+
+function saveArrowsSetting() {
+    if (!arrowsCheckbox) return;
+    localStorage.setItem(ARROWS_STORAGE_KEY, arrowsCheckbox.checked.toString());
 }
 
 // Initial setup
 document.addEventListener('DOMContentLoaded', () => {
     populateEngineSelector();
+    loadArrowsSetting();
 
     if (engineSelector) {
         engineSelector.addEventListener('change', saveEngineSelection);
+    }
+
+    if (arrowsCheckbox) {
+        arrowsCheckbox.addEventListener('input', saveArrowsSetting);
     }
 
     // REMOVE the logic to show/hide the settings panel
@@ -73,5 +93,5 @@ document.addEventListener('DOMContentLoaded', () => {
 // Function to get the currently selected engine path for other scripts
 // Make this function global by assigning it to window
 (window as any).getSelectedEnginePath = function(): string {
-    return localStorage.getItem(STORAGE_KEY) || AVAILABLE_ENGINES[DEFAULT_ENGINE_KEY].path;
+    return localStorage.getItem(ENGINE_STORAGE_KEY) || AVAILABLE_ENGINES[DEFAULT_ENGINE_KEY].path;
 } 
