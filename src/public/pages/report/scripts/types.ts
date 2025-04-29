@@ -73,7 +73,14 @@ interface Report {
         white: ClassificationCount,
         black: ClassificationCount
     },
-    positions: Position[]
+    positions: Position[],
+    // Removed maiaRatings
+    /*
+    maiaRatings?: { 
+        white: number,
+        black: number
+    }
+    */
 }
 
 interface SavedAnalysis {

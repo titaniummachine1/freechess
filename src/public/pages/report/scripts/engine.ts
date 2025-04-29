@@ -127,3 +127,5 @@ class Stockfish {
     }
 
 }
+
+// Removed Lc0Maia class entirely as it was for lc0-js, not lc0.exe

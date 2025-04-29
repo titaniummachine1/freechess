@@ -2,12 +2,18 @@ import { Router } from "express";
 import fetch from "node-fetch";
 import { Chess } from "chess.js";
 import pgnParser from "pgn-parser";
+import { spawn } from "child_process";
+import path from "path";
 
 import analyse from "./lib/analysis";
 import { Position } from "./lib/types/Position";
 import { ParseRequestBody, ReportRequestBody } from "./lib/types/RequestBody";
 
 const router = Router();
+
+const lc0Dir = path.resolve("src/public/scripts/lc0-v0.31.2-windows-cpu-dnnl");
+const lc0Path = path.join(lc0Dir, "lc0.exe");
+const defaultWeightsPath = path.join(lc0Dir, "791556.pb.gz");
 
 router.post("/parse", async (req, res) => {
 
@@ -60,44 +66,111 @@ router.post("/parse", async (req, res) => {
 
 });
 
-router.post("/report", async (req, res) => {
+router.post("/analyse", async (req, res) => {
 
-    let { positions, captchaToken }: ReportRequestBody = req.body;
+    let { positions }: ReportRequestBody = req.body;
 
-    if (!positions || !captchaToken) {
-        return res.status(400).json({ message: "Missing parameters." });
-    }
-
-    // Verify CAPTCHA response token
-    if (process.env.RECAPTCHA_SECRET) {
-        try {
-            let captchaResponse = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                body: `secret=${process.env.RECAPTCHA_SECRET}&response=${captchaToken}`
-            });
-    
-            let captchaResult = await captchaResponse.json();
-            if (!captchaResult.success) {
-                return res.status(400).json({ message: "You must complete the CAPTCHA." });
-            }
-        } catch (err) {
-            return res.status(500).json({ message: "Failed to verify CAPTCHA." });
-        }
+    if (!positions) {
+        return res.status(400).json({ message: "Missing positions data." });
     }
 
     // Generate report
     try {
-        var results = await analyse(positions);
+        var report = await analyse(positions);
     } catch (err) {
         console.log(err);
         return res.status(500).json({ message: "Failed to generate report." });
     }
 
-    res.json({ results });
+    res.json({ report });
 
+});
+
+router.post("/lc0_get_best_move", async (req, res) => {
+    const { fen } = req.body;
+
+    if (!fen) {
+        return res.status(400).json({ message: "Missing FEN string." });
+    }
+
+    console.log(`[API /lc0] Received request for FEN: ${fen}`);
+
+    try {
+        console.log(`[API /lc0] Spawning ${lc0Path}...`); 
+
+        const lc0Process = spawn(lc0Path, {
+            cwd: lc0Dir,
+            windowsHide: true
+        });
+
+        let bestMove: string | null = null;
+        let outputBuffer = "";
+        let uciOkReceived = false;
+        let sentGoCommand = false;
+        let handlingBestMove = false;
+
+        lc0Process.stdout.on("data", (data) => {
+            outputBuffer += data.toString();
+            console.log(`[API /lc0 stdout] ${data.toString().trim()}`);
+
+            if (!uciOkReceived && outputBuffer.includes("uciok")) {
+                uciOkReceived = true;
+                console.log("[API /lc0] UCI OK received. Setting weights...");
+                lc0Process.stdin.write(`setoption name WeightsFile value ${defaultWeightsPath}\n`);
+                console.log("[API /lc0] Setting position...");
+                lc0Process.stdin.write(`position fen ${fen}\n`);
+                console.log("[API /lc0] Sending go nodes 1...");
+                lc0Process.stdin.write("go nodes 1\n");
+                sentGoCommand = true;
+            }
+
+            if (sentGoCommand && !handlingBestMove) {
+                const bestMoveMatch = outputBuffer.match(/bestmove\s+(\S+)/);
+                if (bestMoveMatch) {
+                    handlingBestMove = true;
+                    bestMove = bestMoveMatch[1];
+                    console.log(`[API /lc0] Best move found: ${bestMove}`);
+                    try {
+                        console.log("[API /lc0] Terminating LC0 process...");
+                        lc0Process.kill(); 
+                    } catch (killError) {
+                         console.error("[API /lc0] Error trying to kill LC0 process:", killError);
+                    }
+                }
+            }
+        });
+
+        lc0Process.stderr.on("data", (data) => {
+            console.error(`[API /lc0 stderr] ${data}`);
+        });
+
+        lc0Process.on("close", (code) => {
+            console.log(`[API /lc0] Process exited with code ${code}`);
+            if (!res.headersSent) {
+                if (bestMove) {
+                    res.json({ bestMove: bestMove });
+                } else {
+                    res.status(500).json({ message: `LC0 process exited (code ${code}) without finding best move.` });
+                }
+            }
+        });
+        
+        lc0Process.on("error", (err) => {
+            console.error("[API /lc0] Failed to start or communicate with LC0 process:", err);
+             if (!res.headersSent) {
+                res.status(500).json({ message: "Failed to start or communicate with LC0 process." });
+             }
+        });
+
+        console.log("[API /lc0] Sending initial uci command...");
+        lc0Process.stdin.write("uci\n");
+
+    } catch (error) {
+        console.error("[API /lc0] Error during LC0 analysis:", error);
+        if (!res.headersSent) {
+             res.status(500).json({ message: "Error processing LC0 analysis." });
+        }
+    }
 });
 
 export default router;

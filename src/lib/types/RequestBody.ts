@@ -5,6 +5,12 @@ export interface ParseRequestBody {
 }
 
 export interface ReportRequestBody {
-    positions?: EvaluatedPosition[],
-    captchaToken?: string
+    positions?: EvaluatedPosition[]
+    // Removed maiaRatings
+    /*
+    maiaRatings?: { 
+        white: number,
+        black: number
+    }
+    */
 }

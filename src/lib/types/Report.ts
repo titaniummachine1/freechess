@@ -10,5 +10,12 @@ export default interface Report {
         white: ClassificationCount,
         black: ClassificationCount,
     }
-    positions: EvaluatedPosition[]
+    positions: EvaluatedPosition[],
+    // Removed maiaRatings
+    /*
+    maiaRatings: { 
+        white: number,
+        black: number
+    }
+    */
 }

@@ -13,7 +13,17 @@ import { InfluencingPiece, getAttackers, isPieceHanging, pieceValues, promotions
 
 import openings from "../resources/openings.json";
 
-async function analyse(positions: EvaluatedPosition[]): Promise<Report> {
+// Remove MaiaAverageRatings interface
+/*
+interface MaiaAverageRatings {
+    white: number;
+    black: number;
+}
+*/
+
+async function analyse(
+    positions: EvaluatedPosition[] 
+): Promise<Report> {
     
     // Generate classifications for each position
     let positionIndex = 0;
@@ -380,7 +390,7 @@ async function analyse(positions: EvaluatedPosition[]): Promise<Report> {
         classifications[moveColour][position.classification!] += 1;
     }
 
-    // Return complete report
+    // Return complete report, including Maia ratings
     return {
         accuracies: {
             white: accuracies.white.current / accuracies.white.maximum * 100,
@@ -388,6 +398,7 @@ async function analyse(positions: EvaluatedPosition[]): Promise<Report> {
         },
         classifications,
         positions: positions
+        // maiaRatings: maiaRatings // Remove Maia ratings
     };
 
 }

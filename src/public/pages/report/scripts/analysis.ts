@@ -26,14 +26,8 @@ function logAnalysisError(message: string) {
 
 async function evaluate() {
     // Remove and reset CAPTCHA, remove report cards, display progress bar
-    $(".g-recaptcha").css("display", "none");
-    grecaptcha.reset();
-
     $("#report-cards").css("display", "none");
     $("#evaluation-progress-bar").css("display", "none");
-
-
-    
 
     // Disallow evaluation if another evaluation is ongoing
     if (ongoingEvaluation) return;
@@ -176,18 +170,13 @@ async function evaluate() {
 
             logAnalysisInfo("Evaluation complete.");
             $("#evaluation-progress-bar").val(100);
-            $(".g-recaptcha").css("display", "inline");
-            if(!document.hasFocus()){
-                let snd = new Audio("static/media/ping.mp3");
-                snd.play();
-            }
-            $("#secondary-message").html(
-                "Please complete the CAPTCHA to continue.",
-            );
+            $("#secondary-message").html("");
 
             evaluatedPositions = positions;
             ongoingEvaluation = false;
 
+            generateReportFromEvaluations();
+            
             return;
         }
 
@@ -235,6 +224,18 @@ function loadReportCards() {
     if (!!reportResults) {
         $("#white-accuracy").html(`${reportResults.accuracies.white.toFixed(1)}%`);
         $("#black-accuracy").html(`${reportResults.accuracies.black.toFixed(1)}%`);
+        
+        // Remove Maia Ratings update
+        /* 
+        if (reportResults.maiaRatings) { 
+            $("#white-maia-rating").html(`(Maia: ${reportResults.maiaRatings.white})`);
+            $("#black-maia-rating").html(`(Maia: ${reportResults.maiaRatings.black})`);
+        } else {
+            // Hide or show default if no Maia data
+            $("#white-maia-rating").html(`(Maia: ?)`); 
+            $("#black-maia-rating").html(`(Maia: ?)`);
+        }
+        */
 
         // Initialize classification container for next analysis
         $("#classification-count-container").empty();
@@ -296,49 +297,95 @@ function loadReportCards() {
     logAnalysisInfo("");
 }
 
-async function report() {
-    // Remove CAPTCHA
+async function generateReportFromEvaluations() {
+    // Removed the log/message setting here
+    $("#status-message").css("display", "block");
     
-    $(".g-recaptcha").css("display", "none");
-    $("#secondary-message").html("");
-    $("#evaluation-progress-bar").attr("value", null);
-    logAnalysisInfo("Generating report...");
-    $("#status-message").css("display", "none");
-
-    // Post evaluations and get report results
+    // --- Run Basic Maia Check (for testing) ---
     try {
-        let reportResponse = await fetch("/api/report", {
+        await runBasicMaiaCheck(evaluatedPositions);
+    } catch (error) {
+        console.error("Basic Maia check failed:", error);
+        // Optionally log error to user or decide if it should block report generation
+        logAnalysisError("Basic Maia check step failed. Report generation continuing without it.");
+        // For now, we continue even if Maia check fails.
+    }
+    // --- End Basic Maia Check ---
+
+    try {
+        // Set messages just before fetch
+        logAnalysisInfo("Submitting analysis results...");
+        $("#secondary-message").html("Finalizing report...");
+
+        // Post evaluations (only) to backend for full analysis
+        let analysisResponse = await fetch("/api/analyse", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                positions: evaluatedPositions.map((pos) => {
-                    if (pos.worker != "cloud") {
-                        pos.worker = "local";
-                    }
-                    return pos;
-                }),
-                captchaToken: grecaptcha.getResponse() || "none",
+            body: JSON.stringify({ 
+                positions: evaluatedPositions
             }),
         });
 
-        let report: ReportResponse = await reportResponse.json();
+        let analysisResult = await analysisResponse.json();
 
-        if (!reportResponse.ok) {
+        if (!analysisResponse.ok) {
             return logAnalysisError(
-                report.message ?? "Failed to generate report.",
+                analysisResult.message ?? "Failed to generate report."
             );
         }
 
-        // Set report results to results given by server
-        reportResults = report.results!;
-        $("#status-message").css("display", "none");
+        reportResults = analysisResult.report;
         loadReportCards();
+        isNewGame = true;
     } catch {
-        return logAnalysisError("Failed to generate report.");
+        logAnalysisError("Failed to generate report.");
     }
 }
+
+// --- Basic Maia Check Implementation (using Backend API) ---
+async function runBasicMaiaCheck(positions: Position[]) {
+    logAnalysisInfo("Running basic LC0 check (nodes 1)...");
+    const totalMoves = positions.length - 1;
+    let progress = 0;
+
+    for (let i = 1; i < positions.length; i++) {
+        const previousFen = positions[i - 1].fen;
+        progress++;
+        const progressPercent = ((progress / totalMoves) * 100).toFixed(1);
+        logAnalysisInfo(`Running basic LC0 check... (${progressPercent}%) Move ${progress}/${totalMoves}`);
+
+        try {
+            const response = await fetch("/api/lc0_get_best_move", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ fen: previousFen }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (result.bestMove) {
+                console.log(`[Basic LC0 Check] Move ${i} (FEN: ${previousFen}), LC0 Best: ${result.bestMove}`);
+            } else {
+                console.warn(`[Basic LC0 Check] Move ${i} (FEN: ${previousFen}), LC0 returned no best move.`);
+            }
+        } catch (error) {
+            console.error(`[Basic LC0 Check] Error during backend LC0 analysis for move ${i} (FEN: ${previousFen}):`, error);
+            // Optionally break the loop or log specific UI error
+            logAnalysisError(`LC0 backend check failed for move ${i}. Stopping LC0 check.`);
+            break; // Stop the check if backend fails
+        }
+    }
+    logAnalysisInfo("Basic LC0 check complete."); // Log completion only if loop finishes
+}
+// --- End Basic Maia Check ---
 
 $("#review-settings-button").on("click", () => {
     $("#depth-container").toggle();

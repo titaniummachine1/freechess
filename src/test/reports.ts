@@ -24,7 +24,9 @@ async function main() {
     for (let game of evaluations) {
         gameIndex++;
         try {
-            let report = await analyse(game as EvaluatedPosition[]);
+            // Revert: Remove dummy Maia ratings 
+            // const dummyMaiaRatings = { white: 0, black: 0 }; 
+            let report = await analyse(game as EvaluatedPosition[]); // Reverted call
 
             reports.push(report);
             writeFileSync(`src/test/reports/report${gameIndex}.json`, JSON.stringify({
