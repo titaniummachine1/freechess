@@ -123,12 +123,13 @@ router.post("/lc0_get_best_move", async (req, res) => {
 
             if (!uciOkReceived && outputBuffer.includes("uciok")) {
                 uciOkReceived = true;
-                console.log("[API /lc0] UCI OK received. Setting weights...");
+                console.log("[API /lc0] UCI OK received. Setting weights and MultiPV...");
                 lc0Process.stdin.write(`setoption name WeightsFile value ${defaultWeightsPath}\n`);
+                lc0Process.stdin.write(`setoption name MultiPV value 300\n`);
                 console.log("[API /lc0] Setting position...");
                 lc0Process.stdin.write(`position fen ${fen}\n`);
-                console.log("[API /lc0] Sending go nodes 1...");
-                lc0Process.stdin.write("go nodes 1\n");
+                console.log("[API /lc0] Sending go nodes 1 multipv 300...");
+                lc0Process.stdin.write("go nodes 1 multipv 300\n");
                 sentGoCommand = true;
             }
 
