@@ -15,10 +15,6 @@ const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
         name: 'Stockfish 16',
         path: '/static/scripts/stockfish-nnue-16.js'
     },
-    'sf_asm': {
-        name: 'Stockfish ASM (Fallback)',
-        path: '/static/scripts/stockfish-17-asm.js'
-    }
 };
 
 const DEFAULT_ENGINE_KEY = 'sf17';
