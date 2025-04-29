@@ -428,8 +428,13 @@ async function runBasicMaiaCheck(positions: Position[]) {
         black: { totalRanking: 0, moveCount: 0 }
     };
 
-    // Available Maia weight ratings - from strongest to weakest
-    const weightRatings = [1900, 1800, 1700, 1600, 1500, 1400, 1300, 1200, 1100];
+    // Available Maia weight ratings
+    const weightRatings = [1100, 1300, 1400, 1500, 1600, 1700, 1800, 1900];
+
+    // Get player ratings from PGN if available (fallback to 1500 if not found)
+    const whiteRating = parseInt(whitePlayer.rating) || 1500;
+    const blackRating = parseInt(blackPlayer.rating) || 1500;
+    console.log(`Player ratings - White: ${whiteRating}, Black: ${blackRating}`);
 
     for (let i = 1; i < positions.length; i++) {
         const previousFen = positions[i - 1].fen;
@@ -448,8 +453,37 @@ async function runBasicMaiaCheck(positions: Position[]) {
         const moveSan = position.move.san;
         let moveRanking = null;
 
-        // Try each weight rating from strongest to weakest
+        // Get current player's rating
+        const currentRating = playerColor === "white" ? whiteRating : blackRating;
+        
+        // Find the closest Maia model to the player's rating
+        let closestRating = 1500; // Default starting point
+        let minDifference = Number.MAX_SAFE_INTEGER;
+        
         for (const rating of weightRatings) {
+            const difference = Math.abs(rating - currentRating);
+            if (difference < minDifference) {
+                minDifference = difference;
+                closestRating = rating;
+            }
+        }
+        
+        console.log(`Player ${playerColor} (${currentRating}) - starting search with Maia-${closestRating}`);
+
+        // Create search order: first closest rating, then from lowest to highest
+        const searchOrder = [closestRating];
+        
+        // Add remaining ratings from lowest to highest, skipping the closest rating
+        for (const rating of weightRatings) {
+            if (rating !== closestRating) {
+                searchOrder.push(rating);
+            }
+        }
+        
+        console.log(`Search order for move ${moveSan}: ${searchOrder.join(', ')}`);
+
+        // Try each weight rating in the ordered sequence
+        for (const rating of searchOrder) {
             try {
                 const multipvValue = Math.min(Math.floor(rating / 100), 19); // cap at 19
                 console.log(`Checking move ${moveSan} with Maia-${rating} (multipv: ${multipvValue})...`);
@@ -494,7 +528,7 @@ async function runBasicMaiaCheck(positions: Position[]) {
                         const penalty = (foundRank - 1) * 100;
                         moveRanking = Math.max(100, rating - penalty);
                         console.log(`Move ${moveSan} ranked by Maia-${rating} at position ${foundRank}, final rating: ${moveRanking}`);
-                        break; // Found the highest weight that suggests this move
+                        break; // Found a model that suggests this move
                     } else {
                         console.log(`Move ${moveSan} not suggested by Maia-${rating}`);
                     }
@@ -535,7 +569,7 @@ async function runBasicMaiaCheck(positions: Position[]) {
     localStorage.setItem('playRankings', JSON.stringify(finalRankings));
     console.log(`Final play rankings - White: ${whiteAvgRanking}, Black: ${blackAvgRanking}`);
     
-    logAnalysisInfo("Maia analysis complete."); // Log completion only if loop finishes
+    logAnalysisInfo("Maia analysis complete.");
 }
 // --- End Basic Maia Check ---
 
