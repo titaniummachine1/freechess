@@ -302,7 +302,7 @@ function traverseMoves(moveCount: number) {
     drawEvaluationGraph();
 
     updateClassificationMessage(positions[currentMoveIndex - 1], currentPosition);
-    updateEngineSuggestions(currentPosition.topLines ?? []);
+    
     if (currentPosition.opening) {
         $("#opening-name").html(currentPosition.opening);
     }

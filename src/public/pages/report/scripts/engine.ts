@@ -26,6 +26,25 @@ class Stockfish {
         }
         this.worker.postMessage("uci");
         this.worker.postMessage("setoption name MultiPV value 2");
+        
+        // Set threads automatically based on hardware concurrency
+        try {
+            const hardwareConcurrency = navigator.hardwareConcurrency;
+            if (hardwareConcurrency && hardwareConcurrency > 0) {
+                // Use one less core than available, but at least 1
+                const threads = Math.max(1, hardwareConcurrency - 1);
+                this.worker.postMessage("setoption name Threads value " + threads);
+                console.log(`Stockfish using ${threads} threads (based on ${hardwareConcurrency} logical cores).`);
+            } else {
+                // Default to 1 thread if concurrency info is unavailable
+                this.worker.postMessage("setoption name Threads value 1");
+                console.log("Stockfish using default 1 thread (hardwareConcurrency not available).");
+            }
+        } catch (e) {
+            console.error("Failed to set Stockfish threads:", e);
+            // Fallback to 1 thread in case of error
+            this.worker.postMessage("setoption name Threads value 1");
+        }
     }
 
     async evaluate(fen: string, targetDepth: number, verbose: boolean = false): Promise<EngineLine[]> {
