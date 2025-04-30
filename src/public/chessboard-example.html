@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chessboard Component Example</title>
+
+    <!-- CSS -->
+    <link href="/styles/chessboard.css" rel="stylesheet" type="text/css" />
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Chess Board Component Example</h1>
+        
+        <div class="row">
+            <div class="col">
+                <h2>Game Controls</h2>
+                <div class="controls">
+                    <button id="flip-board">Flip Board</button>
+                    <button id="reset-position">Reset Position</button>
+                    <button id="make-move">Make e2-e4</button>
+                    <button id="highlight-squares">Highlight d5 & e5</button>
+                    <button id="draw-arrow">Draw Arrow</button>
+                    <button id="clear-drawings">Clear Drawings</button>
+                </div>
+                
+                <h2>Position Setup</h2>
+                <div class="position-setup">
+                    <select id="openings">
+                        <option value="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1">Starting Position</option>
+                        <option value="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1">After 1. e4</option>
+                        <option value="rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2">Sicilian Defense</option>
+                        <option value="rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2">Open Game</option>
+                        <option value="rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2">Alekhine's Defense</option>
+                    </select>
+                    <button id="load-position">Load Position</button>
+                </div>
+                
+                <h2>Current FEN</h2>
+                <div class="fen-display">
+                    <input type="text" id="fen-string" readonly>
+                    <button id="copy-fen">Copy</button>
+                </div>
+            </div>
+            
+            <div class="col">
+                <div id="chessboard-container"></div>
+                <div id="move-history">
+                    <h3>Move History</h3>
+                    <div id="moves"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ChessboardComponent } from '/scripts/chessboard-component.js';
+        
+        // Initialize the chessboard component
+        const chessboard = new ChessboardComponent('chessboard-container');
+        
+        // Update the FEN display
+        function updateFenDisplay() {
+            document.getElementById('fen-string').value = chessboard.getPosition();
+        }
+        
+        // Add a move to the move history
+        function addMoveToHistory(from, to) {
+            const movesElement = document.getElementById('moves');
+            const moveItem = document.createElement('div');
+            moveItem.className = 'move-item';
+            moveItem.textContent = `${from} → ${to}`;
+            movesElement.appendChild(moveItem);
+            movesElement.scrollTop = movesElement.scrollHeight;
+        }
+        
+        // Set up event handlers
+        document.getElementById('flip-board').addEventListener('click', () => {
+            chessboard.flip();
+        });
+        
+        document.getElementById('reset-position').addEventListener('click', () => {
+            chessboard.setPosition('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+            document.getElementById('moves').innerHTML = '';
+            updateFenDisplay();
+        });
+        
+        document.getElementById('make-move').addEventListener('click', () => {
+            const result = chessboard.makeMove('e2', 'e4');
+            if (result) {
+                addMoveToHistory('e2', 'e4');
+                updateFenDisplay();
+            }
+        });
+        
+        document.getElementById('highlight-squares').addEventListener('click', () => {
+            chessboard.highlightSquare('d5');
+            chessboard.highlightSquare('e5');
+        });
+        
+        document.getElementById('draw-arrow').addEventListener('click', () => {
+            chessboard.drawArrow('e2', 'e4');
+        });
+        
+        document.getElementById('clear-drawings').addEventListener('click', () => {
+            chessboard.clearDrawings();
+        });
+        
+        document.getElementById('load-position').addEventListener('click', () => {
+            const select = document.getElementById('openings');
+            const fen = select.options[select.selectedIndex].value;
+            chessboard.setPosition(fen);
+            document.getElementById('moves').innerHTML = '';
+            updateFenDisplay();
+        });
+        
+        document.getElementById('copy-fen').addEventListener('click', () => {
+            const fenInput = document.getElementById('fen-string');
+            fenInput.select();
+            document.execCommand('copy');
+        });
+        
+        // Initialize the FEN display
+        updateFenDisplay();
+    </script>
+
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0 -15px;
+        }
+        
+        .col {
+            flex: 1;
+            padding: 0 15px;
+            min-width: 300px;
+        }
+        
+        h1, h2, h3 {
+            color: #333;
+        }
+        
+        .controls, .position-setup, .fen-display {
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        select, input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 70%;
+        }
+        
+        #chessboard-container {
+            margin-bottom: 20px;
+        }
+        
+        #move-history {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            height: 200px;
+        }
+        
+        #moves {
+            overflow-y: auto;
+            height: 150px;
+        }
+        
+        .move-item {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</body>
+</html> 

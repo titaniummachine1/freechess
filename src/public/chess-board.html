@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Board</title>
+
+    <!-- CSS -->
+    <link href="/styles/chessboard.css" rel="stylesheet" type="text/css" />
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Chess Board</h1>
+
+        <div class="controls">
+            <button id="flip-btn">Flip Board</button>
+            <button id="reset-btn">Reset Position</button>
+        </div>
+
+        <div class="chess-box">
+            <canvas class="board-elements"></canvas>
+            <div id="chessboard"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Board } from '/scripts/board.js';
+
+        // Initialize board
+        const board = new Board();
+
+        // Set up event handlers
+        document.getElementById('flip-btn').addEventListener('click', () => {
+            board.flip();
+        });
+        
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            board.fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        });
+
+        // Load starting position
+        board.fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    </script>
+
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</body>
+</html> 

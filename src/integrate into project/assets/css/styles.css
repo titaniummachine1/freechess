@@ -1,0 +1,191 @@
+:root {
+    --theme-light: #e0e0e0;
+    --theme-dark: #6ea176;
+
+    --board-scale: 80;
+}
+
+.chess-box {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	position: relative;
+}
+
+#chessboard {
+	width: calc(var(--board-scale) * 1vmin);
+	height: calc(var(--board-scale) * 1vmin);
+	max-width: calc(var(--board-scale) * 1vw);
+	max-height: calc(var(--board-scale) * 1vh);
+	display: grid;
+	grid-template-columns: repeat(8, minmax(0, 5fr));
+	grid-template-rows: repeat(8, minmax(0, 5fr));
+	padding: 0px;
+    overflow: hidden;
+
+	background-image: url("./../chessboard-bg.jpeg");
+	background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center center; 
+}
+
+
+.board-elements {
+	position: absolute;
+	width: calc(var(--board-scale) * 1vmin);
+	height: calc(var(--board-scale) * 1vmin);
+	max-width: calc(var(--board-scale) * 1vw);
+	max-height: calc(var(--board-scale) * 1vh);
+	pointer-events: none;
+	z-index: 10;
+}
+
+.square {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	position: relative;
+}
+
+.selected-square,
+.square:has(> img.ui-draggable-dragging) {
+	background-image: linear-gradient(#ffe92645 100%, #ffe92625 0%);
+}
+
+.just-moved {
+	background-image: linear-gradient(#ffd0005b 100%, #ffe92625 0%);	
+}
+
+.ui-droppable-active {
+	background-image: radial-gradient(#00000025 23%, transparent 23%);
+}
+
+.ui-draggable-dragging {
+	scale: 1.3;
+}
+
+.ui-droppable-hover {
+    /* Border Technique */
+	box-shadow: 0 0 0 min(0.6vw, 5px) rgba(255, 255, 255, 0.781) inset;
+}
+
+.highlight {
+	background-image: linear-gradient(#ff5252b4 100%, #ff3d3d8f 0%);
+}
+
+.ui-draggable {
+	user-select: none;
+    z-index: 9;
+}
+
+
+/* Board Colors */
+.dark { background-color: var(--theme-dark); }
+.light { background-color: var(--theme-light); }
+
+/* Common styles for all notation labels */
+.square::after {
+    position: absolute;
+    font-size: calc(2vmin);
+    font-weight: 600;
+    color: var(--theme-light); 
+}
+
+/* Left edge - rank numbers */
+.square:nth-child(8n+1)::after {
+    left: 3px;
+    top: 3px;
+}
+
+/* Bottom edge - file letters */
+.square:nth-child(n+57):nth-child(-n+64)::after {
+    right: 4px;
+    bottom: 3px;
+}
+
+/* a1 needs both rank and file */
+#square56::before {
+    content: "a";
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    font-size: max(18px, 1vw);
+    font-weight: 600;
+    color: var(--theme-light); 
+}
+
+/* Individual rank labels (left edge) */
+#square0::after { content: "8"; color: var(--theme-dark); }
+#square8::after { content: "7"; }
+#square16::after { content: "6"; color: var(--theme-dark); }
+#square24::after { content: "5"; }
+#square32::after { content: "4"; color: var(--theme-dark); }
+#square40::after { content: "3"; }
+#square48::after { content: "2"; color: var(--theme-dark); }
+#square56::after { content: "1"; }
+
+/* Individual file labels (bottom edge) */
+#square57::after { content: "b"; color: var(--theme-dark); }
+#square58::after { content: "c"; }
+#square59::after { content: "d"; color: var(--theme-dark); }
+#square60::after { content: "e"; }
+#square61::after { content: "f"; color: var(--theme-dark); }
+#square62::after { content: "g"; }
+#square63::after { content: "h"; color: var(--theme-dark); }
+
+
+/* Promotion panel styles */
+.promotion-panel {
+    position: absolute;
+    background-color: #f1f1f1;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    z-index: 15;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.promotion-piece {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.promotion-piece:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.promotion-piece img {
+    width: 90%;
+    height: 90%;
+    pointer-events: none;
+}
+
+.promotion-cancel {
+    width: 80px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background-color: #e0e0e0;
+    transition: background-color 0.2s;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.promotion-cancel:hover {
+    background-color: #d0d0d0;
+}
+
+/* Animation for panel appearance */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
