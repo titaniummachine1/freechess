@@ -61,9 +61,14 @@ class Stockfish {
 
                 if (verbose) console.log(message);
 
-                // Get latest depth for progress monitoring
-                let latestDepth = parseInt(message.match(/(?:depth )(\d+)/)?.[1] || "0");
-                this.depth = Math.max(latestDepth, this.depth);
+                // Only update and log when receiving a new "info depth" message
+                if (message.startsWith("info depth ")) {
+                    let latestDepth = parseInt(message.match(/(?:depth )(\d+)/)?.[1] || "0");
+                    if (latestDepth > this.depth) {
+                        this.depth = latestDepth;
+                        console.log(`Stockfish current depth: ${this.depth}`);
+                    }
+                }
 
                 // Best move or checkmate log indicates end of search
                 if (message.startsWith("bestmove") || message.includes("depth 0")) {            
