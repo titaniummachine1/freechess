@@ -20,11 +20,111 @@ let evaluatedPositions: Position[] = [];
 // Assuming 'Report' type is available from types.ts or similar
 let reportResults: Report | undefined;
 
-// Exponential fit constants and helper
-const EXP_A = 74.7719;
-const EXP_B = 0.0372985;
-function accuracyToRating(acc: number): number {
-  return Math.round(EXP_A * Math.exp(EXP_B * acc));
+// Sigmoid mapping constants and helper
+const FLOOR_RATING = 100;
+const TOP_RATING   = 3642;
+const K            = 0.0553;   // slope of logistic curve
+const X0           = 87.46;    // mid-point in accuracy %
+/**
+ * Convert accuracy % → Elo via logistic curve
+ */
+function accuracyToRank(acc: number): number {
+  const v = FLOOR_RATING
+          + (TOP_RATING - FLOOR_RATING)
+            / (1 + Math.exp(-K * (acc - X0)));
+  return Math.round(v);
+}
+
+// Available Maia weight ratings for expanding search
+const MAIA_WEIGHTS: number[] = [1100, 1300, 1400, 1500, 1600, 1700, 1800, 1900];
+
+// Build spiral search order around a predicted rating
+function buildSearchOrder(predicted: number, weights: number[]): number[] {
+  const sorted = [...weights].sort((a, b) => a - b);
+  let closestIndex = 0;
+  let minDiff = Infinity;
+  sorted.forEach((val, i) => {
+    const diff = Math.abs(val - predicted);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIndex = i;
+    }
+  });
+  const order: number[] = [closestIndex];
+  for (let step = 1; step < sorted.length; step++) {
+    const down = closestIndex - step;
+    const up = closestIndex + step;
+    if (down >= 0) order.push(down);
+    if (up < sorted.length) order.push(up);
+  }
+  return order.map(i => sorted[i]);
+}
+
+// Expand Maia search per move using predicted base ratings
+async function runMaiaExpanding(
+  positions: Position[],
+  predictedRatings: { white: number; black: number }
+): Promise<{ white: number | null; black: number | null }> {
+  const playerRankings = {
+    white: { total: 0, count: 0 },
+    black: { total: 0, count: 0 },
+  };
+
+  for (let i = 1; i < positions.length; i++) {
+    const position = positions[i];
+    if (!position.move?.uci) continue;
+    const playerColor: 'white' | 'black' = position.fen.includes(' b ') ? 'white' : 'black';
+    const actualMoveUci = position.move.uci;
+    const predicted = predictedRatings[playerColor];
+    const searchOrder = buildSearchOrder(predicted, MAIA_WEIGHTS);
+
+    let moveRanking: number | null = null;
+    for (const weight of searchOrder) {
+      const multipv = Math.min(Math.floor(weight / 100), 19);
+      try {
+        const res = await fetch('/api/lc0_get_best_move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fen: positions[i - 1].fen,
+            multipv,
+            weightRating: weight,
+          }),
+        });
+        if (!res.ok) continue;
+        const result = await res.json();
+        let foundRank: number | null = null;
+        for (const line of result.pvLines || []) {
+          const m = (line as string).match(/multipv (\d+).*? pv ([a-h][1-8][a-h][1-8][qrbn]?)/i);
+          if (m && m[2] === actualMoveUci) {
+            foundRank = parseInt(m[1], 10);
+            break;
+          }
+        }
+        if (foundRank !== null) {
+          const penalty = (foundRank - 1) * 100;
+          moveRanking = Math.max(100, weight - penalty);
+          break;
+        }
+      } catch (e) {
+        console.error('Error checking weight', weight, e);
+      }
+    }
+    if (moveRanking === null) {
+      moveRanking = 100;
+    }
+    playerRankings[playerColor].total += moveRanking;
+    playerRankings[playerColor].count++;
+  }
+
+  return {
+    white: playerRankings.white.count > 0
+      ? Math.round(playerRankings.white.total / playerRankings.white.count)
+      : null,
+    black: playerRankings.black.count > 0
+      ? Math.round(playerRankings.black.total / playerRankings.black.count)
+      : null,
+  };
 }
 
 function logAnalysisInfo(message: string) {
@@ -369,15 +469,21 @@ async function generateReportFromEvaluations() {
             );
         }
 
-        reportResults = analysisResult.report;
+        const report = analysisResult.report;
+        reportResults = report;
         
-        // Compute play rankings based on accuracy with exponential model
-        if (reportResults) {
-            reportResults.playRankings = {
-                white: accuracyToRating(reportResults.accuracies.white),
-                black: accuracyToRating(reportResults.accuracies.black)
-            };
-            console.log("Predicted play rankings:", reportResults.playRankings);
+        // Use predicted ratings as base and expand via Maia search
+        const predictedRatings = {
+          white: accuracyToRank(report.accuracies.white),
+          black: accuracyToRank(report.accuracies.black)
+        };
+        try {
+          const expanded = await runMaiaExpanding(evaluatedPositions, predictedRatings);
+          report.playRankings = expanded;
+          console.log("Expanded play rankings:", expanded);
+        } catch (e) {
+          console.error("Error in expanded search:", e);
+          report.playRankings = predictedRatings;
         }
         
         loadReportCards();
