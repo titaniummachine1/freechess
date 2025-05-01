@@ -127,11 +127,21 @@ async function runMaiaExpanding(
   };
 }
 
-function logAnalysisInfo(message: string) {
+function logAnalysisInfo(message: string, progress?: number) {
+    // Show status message container and set padding/color
     $("#status-message").css("display", "block");
-    
-    $("#status-message").css("background", "rgba(49, 51, 56, 255)");
+    $("#status-message").css("padding", "10px 3px 10px 3px");
     $("#status-message").css("color", "white");
+
+    // For evaluation, apply a gradient background according to progress
+    if (message.startsWith("Evaluating positions") && progress !== undefined) {
+        const pct = progress.toFixed(1);
+        $("#status-message").css("background", `linear-gradient(to right, rgba(76, 175, 80, 0.3) ${pct}%, rgba(49, 51, 56, 1) ${pct}%)`);
+    } else {
+        // Default static background
+        $("#status-message").css("background", "rgba(49, 51, 56, 1)");
+    }
+
     $("#status-message").html(message);
 }
 
@@ -151,7 +161,9 @@ function logAnalysisError(message: string) {
 async function evaluate() {
     // Remove and reset CAPTCHA, remove report cards, display progress bar
     $("#report-cards").css("display", "none");
-    $("#evaluation-progress-bar").css("display", "none");
+    // Show and initialize the evaluation progress bar with smooth animation
+    $("#evaluation-progress-bar").css("display", "block");
+    $("#evaluation-progress-bar").attr("value", 0);
 
     // Disallow evaluation if another evaluation is ongoing
     if (ongoingEvaluation) return;
@@ -283,7 +295,7 @@ async function evaluate() {
         let progress =
             ((positions.indexOf(position) + 1) / positions.length) * 100;
         $("#evaluation-progress-bar").attr("value", progress);
-        logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
+        logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`, progress);
     }
 
     // Evaluate remaining positions sequentially using the same engine
@@ -292,7 +304,7 @@ async function evaluate() {
         if (!position.topLines) {
             const progress = ((i + 1) / positions.length) * 100;
             $("#evaluation-progress-bar").attr("value", progress);
-            logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
+            logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`, progress);
             const engineLines = await engine.evaluate(position.fen, depth);
             position.topLines = engineLines;
         }

@@ -467,6 +467,8 @@
     margin-top: 10px;
     height: 20px;
     width: 90%;
+    /* animate visibility and background gradient */
+    transition: opacity 0.3s ease, background 0.3s ease;
 }
 
 .fa-circle-info {
@@ -481,6 +483,14 @@
 #evaluation-progress-bar::-webkit-progress-value {
     border-radius: 5px;
     background-color: #4caf50;
+    /* animate value width for smooth progression */
+    transition: width 0.3s ease;
+}
+
+/* Animate progress bar and background transitions */
+#evaluation-progress-bar::-moz-progress-bar {
+    /* animate value width for Firefox */
+    transition: width 0.3s ease;
 }
 
 /*
