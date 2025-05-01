@@ -283,32 +283,34 @@ async function evaluate() {
         logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
     }
 
-    // Create a pool of 6 persistent Stockfish workers for local eval
+    // Evaluating remaining positions via color-specific pools (2 White, 2 Black)
     const hw = navigator.hardwareConcurrency || 1;
-    const threads = Math.max(1, hw - 1);
-    const poolSize = 6;
-    const threadsPerWorker = Math.max(1, Math.floor(threads / poolSize));
-    const pool: Stockfish[] = [];
-    for (let i = 0; i < poolSize; i++) {
-        const engine = new Stockfish();
-        engine.setThreads(threadsPerWorker);
-        pool.push(engine);
-    }
-    const toEval = positions.filter(pos => !pos.topLines);
-    const total = toEval.length;
-    let done = 0;
-    // Assign each position to a worker round-robin
-    const tasks = toEval.map((pos, i) => {
-        const engine = pool[i % poolSize];
-        return engine.evaluate(pos.fen, depth).then(lines => {
+    // Each worker gets half cores for itself (e.g. 8 → 4 threads)
+    const workerThreads = Math.max(1, Math.floor(hw / 2));
+    // Build two pools
+    const whiteQueue = positions.filter(p => !p.topLines && p.fen.split(' ')[1] === 'w');
+    const blackQueue = positions.filter(p => !p.topLines && p.fen.split(' ')[1] === 'b');
+    const totalEvals = whiteQueue.length + blackQueue.length;
+    let evalCount = 0;
+    const whitePool = [new Stockfish(), new Stockfish()];
+    const blackPool = [new Stockfish(), new Stockfish()];
+    whitePool.forEach(e => e.setThreads(workerThreads));
+    blackPool.forEach(e => e.setThreads(workerThreads));
+    // Worker loop for a color pool
+    async function runPool(queue: Position[], pool: Stockfish[]) {
+        while (queue.length) {
+            const pos = queue.shift()!;
+            const engine = pool.shift()!;
+            const lines = await engine.evaluate(pos.fen, depth);
             pos.topLines = lines;
-            done++;
-            updateProgress(done, total);
-        });
-    });
-    await Promise.all(tasks);
-    // Terminate all pool workers
-    pool.forEach(e => e.terminate());
+            evalCount++; updateProgress(evalCount, totalEvals);
+            pool.push(engine);
+        }
+    }
+    // Run both pools in parallel
+    await Promise.all([runPool(whiteQueue, whitePool), runPool(blackQueue, blackPool)]);
+    // Clean up
+    [...whitePool, ...blackPool].forEach(e => e.terminate());
     // Finalize
     evaluatedPositions = positions;
     ongoingEvaluation = false;
