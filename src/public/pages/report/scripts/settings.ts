@@ -6,12 +6,12 @@ const depthCounter = document.getElementById('depth-counter');
 
 const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
     'sf17': {
-        name: 'Stockfish 17',
-        path: '/static/scripts/stockfish-17-single.js'
+        name: 'Stockfish 17 (Multi-Thread)',
+        path: '/static/scripts/stockfish-17.js'
     },
     'sf17_lite': {
-        name: 'Stockfish 17 Lite',
-        path: '/static/scripts/stockfish-17-lite-single.js'
+        name: 'Stockfish 17 Lite (Multi-Thread)',
+        path: '/static/scripts/stockfish-17-lite.js'
     },
     'sf16': {
         name: 'Stockfish 16',

@@ -45,6 +45,9 @@ class Stockfish {
             // Fallback to 1 thread in case of error
             this.worker.postMessage("setoption name Threads value 1");
         }
+        // Configure persistent hash table (size in MB) and do not clear between searches
+        this.worker.postMessage("setoption name Hash value 64");
+        this.worker.postMessage("setoption name Clear Hash value false");
     }
 
     async evaluate(fen: string, targetDepth: number, verbose: boolean = false): Promise<EngineLine[]> {
@@ -66,7 +69,7 @@ class Stockfish {
                 this.depth = Math.max(latestDepth, this.depth);
 
                 // Best move or checkmate log indicates end of search
-                if (message.startsWith("bestmove") || message.includes("depth 0")) {            
+                if (message.startsWith("bestmove") || message.includes("depth 0")) {
                     let searchMessages = messages.filter(msg => msg.startsWith("info depth"));
 
                     for (let searchMessage of searchMessages) {
@@ -104,7 +107,6 @@ class Stockfish {
                         });
                     }
 
-                    this.worker.terminate();
                     res(lines);
                 }
             });

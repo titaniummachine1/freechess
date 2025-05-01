@@ -10,6 +10,13 @@ const app = express();
 
 app.use(express.json());
 
+// Enable cross-origin isolation (required for SharedArrayBuffer and WASM threads)
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+});
+
 app.use("/static",
     express.static("dist/public"),
     express.static("src/public")

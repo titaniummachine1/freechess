@@ -205,14 +205,17 @@ async function evaluate() {
 
     $("#secondary-message").html("It can take around a minute to process a full game.");
 
+    // Create a single persistent Stockfish engine (multi-threaded internally)
+    const engine = new Stockfish();
+
     // Fetch cloud evaluations where possible
     for (let position of positions) {
         function placeCutoff(pos: Position) {
             let lastPosition = positions[positions.indexOf(pos) - 1];
             if (!lastPosition) return;
 
-            let cutoffWorker = new Stockfish();
-            cutoffWorker
+            // Use the persistent engine for cutoff evaluation
+            engine
                 .evaluate(lastPosition.fen, depth)
                 .then((engineLines) => {
                     lastPosition.cutoffEvaluation = engineLines.find(
@@ -283,56 +286,24 @@ async function evaluate() {
         logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
     }
 
-    // Evaluate remaining positions
-    let workerCount = 0;
-
-    const stockfishManager = setInterval(() => {
-        // If all evaluations have been generated, move on
-        
-        if (!positions.some((pos) => !pos.topLines)) {
-            clearInterval(stockfishManager);
-
-            logAnalysisInfo("Evaluation complete.");
-            $("#evaluation-progress-bar").val(100);
-            $("#secondary-message").html("");
-
-            evaluatedPositions = positions;
-            ongoingEvaluation = false;
-
-            generateReportFromEvaluations();
-            
-            return;
+    // Evaluate remaining positions sequentially using the same engine
+    for (let i = 0; i < positions.length; i++) {
+        const position = positions[i];
+        if (!position.topLines) {
+            const progress = ((i + 1) / positions.length) * 100;
+            $("#evaluation-progress-bar").attr("value", progress);
+            logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
+            const engineLines = await engine.evaluate(position.fen, depth);
+            position.topLines = engineLines;
         }
-
-        // Find next position with no worker and add new one
-        for (let position of positions) {
-            if (position.worker || workerCount >= 8) continue;
-
-            let worker = new Stockfish();
-            worker.evaluate(position.fen, depth).then((engineLines) => {
-                position.topLines = engineLines;
-                workerCount--;
-            });
-
-            position.worker = worker;
-            workerCount++;
-        }
-
-        // Update progress monitor
-        let workerDepths = 0;
-        for (let position of positions) {
-            if (typeof position.worker == "object") {
-                workerDepths += position.worker.depth;
-            } else if (typeof position.worker == "string") {
-                workerDepths += depth;
-            }
-        }
-
-        let progress = (workerDepths / (positions.length * depth)) * 100;
-
-        $("#evaluation-progress-bar").attr("value", progress);
-        logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
-    }, 10);
+    }
+    // All done
+    logAnalysisInfo("Evaluation complete.");
+    $("#evaluation-progress-bar").val(100);
+    $("#secondary-message").html("");
+    evaluatedPositions = positions;
+    ongoingEvaluation = false;
+    generateReportFromEvaluations();
 }
 
 function loadReportCards() {
