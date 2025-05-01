@@ -20,8 +20,8 @@ class Stockfish {
             this.worker = new Worker(this.enginePath);
         } catch (e) {
             console.error(`Failed to load selected engine: ${this.enginePath}. Falling back.`, e);
-            // Fallback logic - use the ASM or a known good path
-            this.enginePath = '/static/scripts/stockfish-17-asm.js'; // Or stockfish.js
+            // Fallback logic - use the fastest WASM build
+            this.enginePath = '/static/scripts/stockfish-17-single.js';
             this.worker = new Worker(this.enginePath);
         }
         this.worker.postMessage("uci");
@@ -121,8 +121,8 @@ class Stockfish {
                 // Terminate the current Stockfish, switch to Stockfish 11 as fallback engine
                 console.error(`Worker error for engine: ${this.enginePath}. Falling back to ASM.`);
                 this.worker.terminate();
-                // Use a known fallback path directly
-                const fallbackPath = "/static/scripts/stockfish-17-asm.js"; // Or stockfish.js
+                // Use the fastest WASM build as fallback
+                const fallbackPath = "/static/scripts/stockfish-17-single.js";
                 this.worker = new Worker(fallbackPath);
                 this.enginePath = fallbackPath; // Update the current path
 

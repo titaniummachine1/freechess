@@ -5,17 +5,13 @@ const arrowsCheckbox = document.getElementById('suggestion-arrows-setting') as H
 const depthCounter = document.getElementById('depth-counter');
 
 const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
-    'stockfish_js': {
-        name: 'Stockfish.js (Emscripten)',
+    'sf_mt': {
+        name: 'Stockfish (Multi-threaded)',
         path: '/static/scripts/stockfish.js'
     },
-    'sf16': {
+    'sf16_js': {
         name: 'Stockfish 16 NNUE',
         path: '/static/scripts/stockfish-nnue-16.js'
-    },
-    'sf17_asm': {
-        name: 'Stockfish 17 (asm.js)',
-        path: '/static/scripts/stockfish-17-asm.js'
     },
     'sf17_wasm': {
         name: 'Stockfish 17 (WASM)',
@@ -25,9 +21,13 @@ const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
         name: 'Stockfish 17 Lite',
         path: '/static/scripts/stockfish-17-lite-single.js'
     },
+    'sf17_asm': {
+        name: 'Stockfish 17 (ASM.js)',
+        path: '/static/scripts/stockfish-17-asm.js'
+    }
 };
 
-const DEFAULT_ENGINE_KEY = 'sf17';
+const DEFAULT_ENGINE_KEY = 'sf_mt';
 const ENGINE_STORAGE_KEY = 'selectedEnginePath';
 const ARROWS_STORAGE_KEY = 'suggestionArrowsEnabled';
 const DEPTH_STORAGE_KEY = 'analysisDepth';
