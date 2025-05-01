@@ -5,17 +5,25 @@ const arrowsCheckbox = document.getElementById('suggestion-arrows-setting') as H
 const depthCounter = document.getElementById('depth-counter');
 
 const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
-    'sf17': {
-        name: 'Stockfish 17',
+    'stockfish_js': {
+        name: 'Stockfish.js (Emscripten)',
+        path: '/static/scripts/stockfish.js'
+    },
+    'sf16': {
+        name: 'Stockfish 16 NNUE',
+        path: '/static/scripts/stockfish-nnue-16.js'
+    },
+    'sf17_asm': {
+        name: 'Stockfish 17 (asm.js)',
         path: '/static/scripts/stockfish-17-asm.js'
+    },
+    'sf17_wasm': {
+        name: 'Stockfish 17 (WASM)',
+        path: '/static/scripts/stockfish-17-single.js'
     },
     'sf17_lite': {
         name: 'Stockfish 17 Lite',
         path: '/static/scripts/stockfish-17-lite-single.js'
-    },
-    'sf16': {
-        name: 'Stockfish 16',
-        path: '/static/scripts/stockfish-nnue-16.js'
     },
 };
 

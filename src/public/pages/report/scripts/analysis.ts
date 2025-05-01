@@ -283,39 +283,42 @@ async function evaluate() {
         logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
     }
 
-    // Evaluate remaining positions using two Stockfish instances (white & black)
+    // Evaluate remaining positions with two persistent engines, each minding its assigned color
     const hardwareConcurrency = navigator.hardwareConcurrency || 1;
     const totalThreads = Math.max(1, hardwareConcurrency - 1);
     const threadsPerEngine = Math.max(1, Math.floor(totalThreads / 2));
-    const engineW = new Stockfish();
-    engineW.setThreads(threadsPerEngine);
-    const engineB = new Stockfish();
-    engineB.setThreads(threadsPerEngine);
+    const engineW = new Stockfish(); engineW.setThreads(threadsPerEngine);
+    const engineB = new Stockfish(); engineB.setThreads(threadsPerEngine);
     const toEvaluate = positions.filter(pos => !pos.topLines);
     const totalToEvaluate = toEvaluate.length;
     let evaluatedCount = 0;
-    for (let idx = 0; idx < toEvaluate.length; idx += 2) {
-        const promises: Promise<EngineLine[]>[] = [];
-        const pos1 = toEvaluate[idx];
-        promises.push(engineW.evaluate(pos1.fen, depth));
-        if (idx + 1 < toEvaluate.length) {
-            const pos2 = toEvaluate[idx + 1];
-            promises.push(engineB.evaluate(pos2.fen, depth));
-        }
-        const results = await Promise.all(promises);
-        pos1.topLines = results[0];
-        evaluatedCount++;
-        if (results.length > 1) {
-            const pos2 = toEvaluate[idx + 1];
-            pos2.topLines = results[1];
-            evaluatedCount++;
-        }
-        const progress = (evaluatedCount / totalToEvaluate) * 100;
-        $("#evaluation-progress-bar").val(progress);
-        logAnalysisInfo(`Evaluated moves: ${evaluatedCount}/${totalToEvaluate}`);
-    }
-    engineW.terminate();
-    engineB.terminate();
+    // Split into white-to-play and black-to-play positions
+    const whitePositions = toEvaluate.filter(pos => pos.fen.split(' ')[1] === 'w');
+    const blackPositions = toEvaluate.filter(pos => pos.fen.split(' ')[1] === 'b');
+    // Process each color queue in parallel
+    await Promise.all([
+        (async () => {
+            for (const pos of whitePositions) {
+                const lines = await engineW.evaluate(pos.fen, depth);
+                pos.topLines = lines;
+                evaluatedCount++;
+                const progress = (evaluatedCount / totalToEvaluate) * 100;
+                $("#evaluation-progress-bar").val(progress);
+                logAnalysisInfo(`Evaluated moves: ${evaluatedCount}/${totalToEvaluate}`);
+            }
+        })(),
+        (async () => {
+            for (const pos of blackPositions) {
+                const lines = await engineB.evaluate(pos.fen, depth);
+                pos.topLines = lines;
+                evaluatedCount++;
+                const progress = (evaluatedCount / totalToEvaluate) * 100;
+                $("#evaluation-progress-bar").val(progress);
+                logAnalysisInfo(`Evaluated moves: ${evaluatedCount}/${totalToEvaluate}`);
+            }
+        })()
+    ]);
+    engineW.terminate(); engineB.terminate();
     logAnalysisInfo("Evaluation complete.");
     $("#evaluation-progress-bar").val(100);
     evaluatedPositions = positions;
