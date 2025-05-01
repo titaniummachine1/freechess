@@ -20,6 +20,13 @@ let evaluatedPositions: Position[] = [];
 // Assuming 'Report' type is available from types.ts or similar
 let reportResults: Report | undefined;
 
+// Exponential fit constants and helper
+const EXP_A = 74.7719;
+const EXP_B = 0.0372985;
+function accuracyToRating(acc: number): number {
+  return Math.round(EXP_A * Math.exp(EXP_B * acc));
+}
+
 function logAnalysisInfo(message: string) {
     $("#status-message").css("display", "block");
     
@@ -338,15 +345,6 @@ async function generateReportFromEvaluations() {
     // Set initial messages
     $("#status-message").css("display", "block");
     
-    // --- Run Basic Maia Check for Play Rankings ---
-    try {
-        await runBasicMaiaCheck(evaluatedPositions);
-    } catch (error) {
-        console.error("Basic Maia check failed:", error);
-        logAnalysisError("Maia analysis step failed. Report generation continuing without it.");
-    }
-    // --- End Basic Maia Check ---
-    
     try {
         // Set messages just before fetch
         logAnalysisInfo("Submitting analysis results...");
@@ -373,40 +371,13 @@ async function generateReportFromEvaluations() {
 
         reportResults = analysisResult.report;
         
-        // Retrieve play rankings from localStorage that were calculated during Maia analysis
-        try {
-            logAnalysisInfo("Processing play rankings...");
-            
-            const storedRankings = localStorage.getItem('playRankings');
-            if (storedRankings && reportResults) {
-                reportResults.playRankings = JSON.parse(storedRankings);
-                console.log("Play rankings received:", reportResults.playRankings);
-            } else {
-                // Use API if localStorage data isn't available
-                const playRankingsResponse = await fetch("/api/get_play_rankings", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ 
-                        positions: evaluatedPositions
-                    }),
-                });
-                
-                if (playRankingsResponse.ok && reportResults) {
-                    const playRankingsResult = await playRankingsResponse.json();
-                    // Integrate play rankings into the report
-                    if (playRankingsResult.playRankings) {
-                        reportResults.playRankings = playRankingsResult.playRankings;
-                        console.log("Play rankings received:", reportResults.playRankings);
-                    }
-                } else {
-                    console.warn("Failed to get play rankings, using default values");
-                }
-            }
-        } catch (error) {
-            console.error("Error processing play rankings:", error);
-            // Continue with report even if play rankings fail
+        // Compute play rankings based on accuracy with exponential model
+        if (reportResults) {
+            reportResults.playRankings = {
+                white: accuracyToRating(reportResults.accuracies.white),
+                black: accuracyToRating(reportResults.accuracies.black)
+            };
+            console.log("Predicted play rankings:", reportResults.playRankings);
         }
         
         loadReportCards();
@@ -415,163 +386,6 @@ async function generateReportFromEvaluations() {
         logAnalysisError("Failed to generate report.");
     }
 }
-
-// --- Basic Maia Check Implementation (using Backend API) ---
-async function runBasicMaiaCheck(positions: Position[]) {
-    logAnalysisInfo("Running Maia analysis...");
-    const totalMoves = positions.length - 1;
-    let progress = 0;
-
-    // Track rankings for each player
-    const playerRankings = {
-        white: { totalRanking: 0, moveCount: 0 },
-        black: { totalRanking: 0, moveCount: 0 }
-    };
-
-    // Available Maia weight ratings
-    const weightRatings = [1100, 1300, 1400, 1500, 1600, 1700, 1800, 1900];
-
-    // Get player ratings from PGN if available (fallback to 1500 if not found)
-    const whiteRating = parseInt(whitePlayer.rating) || 1500;
-    const blackRating = parseInt(blackPlayer.rating) || 1500;
-    console.log(`Player ratings - White: ${whiteRating}, Black: ${blackRating}`);
-
-    for (let i = 1; i < positions.length; i++) {
-        const previousFen = positions[i - 1].fen;
-        const position = positions[i];
-        progress++;
-        const progressPercent = ((progress / totalMoves) * 100).toFixed(1);
-        logAnalysisInfo(`Running Maia analysis... (${progressPercent}%) Move ${progress}/${totalMoves}`);
-
-        // Skip positions without moves
-        if (!position.move || !position.move.uci) {
-            continue;
-        }
-
-        const playerColor = position.fen.includes(" b ") ? "white" : "black";
-        const actualMoveUci = position.move.uci;
-        const moveSan = position.move.san;
-        let moveRanking = null;
-
-        // Get current player's rating
-        const currentRating = playerColor === "white" ? whiteRating : blackRating;
-        
-        // Find the closest Maia model to the player's rating
-        let closestRating = 1500; // Default starting point
-        let minDifference = Number.MAX_SAFE_INTEGER;
-        
-        for (const rating of weightRatings) {
-            const difference = Math.abs(rating - currentRating);
-            if (difference < minDifference) {
-                minDifference = difference;
-                closestRating = rating;
-            }
-        }
-        
-        console.log(`Player ${playerColor} (${currentRating}) - starting search with Maia-${closestRating}`);
-
-        // Create search order: first closest rating, then from lowest to highest
-        const searchOrder = [closestRating];
-        
-        // Add remaining ratings from lowest to highest, skipping the closest rating
-        for (const rating of weightRatings) {
-            if (rating !== closestRating) {
-                searchOrder.push(rating);
-            }
-        }
-        
-        console.log(`Search order for move ${moveSan}: ${searchOrder.join(', ')}`);
-
-        // Try each weight rating in the ordered sequence
-        for (const rating of searchOrder) {
-            try {
-                const multipvValue = Math.min(Math.floor(rating / 100), 19); // cap at 19
-                console.log(`Checking move ${moveSan} with Maia-${rating} (multipv: ${multipvValue})...`);
-                
-                const response = await fetch("/api/lc0_get_best_move", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ 
-                        fen: previousFen,
-                        multipv: multipvValue,
-                        weightRating: rating
-                    }),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                if (result.pvLines && result.pvLines.length > 0) {
-                    // Find the move's rank in the PV lines
-                    let foundRank = null;
-                    
-                    for (const pvLine of result.pvLines) {
-                        const moveMatch = pvLine.match(/multipv (\d+).*? pv ([a-h][1-8][a-h][1-8][qrbn]?)/i);
-                        if (moveMatch && moveMatch.length >= 3) {
-                            const rank = parseInt(moveMatch[1], 10);
-                            const moveUci = moveMatch[2];
-                            
-                            if (moveUci === actualMoveUci) {
-                                foundRank = rank;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (foundRank !== null) {
-                        // Apply penalty based on rank (100 points per rank position after 1st)
-                        const penalty = (foundRank - 1) * 100;
-                        moveRanking = Math.max(100, rating - penalty);
-                        console.log(`Move ${moveSan} ranked by Maia-${rating} at position ${foundRank}, final rating: ${moveRanking}`);
-                        break; // Found a model that suggests this move
-                    } else {
-                        console.log(`Move ${moveSan} not suggested by Maia-${rating}`);
-                    }
-                }
-            } catch (error) {
-                console.error(`Error analyzing move ${i} with Maia-${rating}:`, error);
-                // Continue to next weight file on error
-            }
-        }
-
-        // If no model suggested this move, assign minimum rating
-        if (moveRanking === null) {
-            moveRanking = 100; // Minimum rating
-            console.log(`Move ${moveSan} not suggested by any Maia model, assigning minimum: 100`);
-        }
-
-        // Add to player's total
-        playerRankings[playerColor].totalRanking += moveRanking;
-        playerRankings[playerColor].moveCount++;
-        console.log(`Current ${playerColor} ranking: ${playerRankings[playerColor].totalRanking}/${playerRankings[playerColor].moveCount}`);
-    }
-    
-    // Calculate average rankings
-    const whiteAvgRanking = playerRankings.white.moveCount > 0 
-        ? Math.round(playerRankings.white.totalRanking / playerRankings.white.moveCount)
-        : null;
-        
-    const blackAvgRanking = playerRankings.black.moveCount > 0 
-        ? Math.round(playerRankings.black.totalRanking / playerRankings.black.moveCount)
-        : null;
-    
-    // Store rankings for later retrieval
-    const finalRankings = {
-        white: whiteAvgRanking,
-        black: blackAvgRanking
-    };
-    
-    localStorage.setItem('playRankings', JSON.stringify(finalRankings));
-    console.log(`Final play rankings - White: ${whiteAvgRanking}, Black: ${blackAvgRanking}`);
-    
-    logAnalysisInfo("Maia analysis complete.");
-}
-// --- End Basic Maia Check ---
 
 $("#review-settings-button").on("click", () => {
     $("#depth-container").toggle();
