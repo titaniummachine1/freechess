@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import fetch from "node-fetch";
 import { Chess } from "chess.js";
 import pgnParser from "pgn-parser";
@@ -269,6 +269,12 @@ router.post("/get_play_rankings", async (req, res) => {
         console.error("[API /get_play_rankings] Error:", error);
         res.status(500).json({ message: "Error processing play rankings analysis." });
     }
+});
+
+// Global error handler for API routes
+router.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('API error:', err);
+  res.status(500).json({ message: 'Internal server error' });
 });
 
 export default router;

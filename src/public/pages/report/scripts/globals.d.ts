@@ -113,6 +113,3 @@ declare function drawEvaluationBar(evaluation: Evaluation, flipped: boolean, pla
 declare function drawEvaluationGraph(): void;
 declare function updateClassificationMessage(prevPosition: Position, currentPosition: Position): void;
 declare function loadSprite(spriteName: string): Promise<HTMLImageElement>;
-
-// Declare $ for jQuery
-declare const $: any; 
