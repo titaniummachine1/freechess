@@ -48,6 +48,9 @@ class Stockfish {
     }
 
     async evaluate(fen: string, targetDepth: number, verbose: boolean = false): Promise<EngineLine[]> {
+        // Reset per-search state and inform engine of a new game
+        this.depth = 0;
+        this.worker.postMessage("ucinewgame");
         this.worker.postMessage("position fen " + fen);
         this.worker.postMessage("go depth " + targetDepth);
 
@@ -109,7 +112,7 @@ class Stockfish {
                         });
                     }
 
-                    this.worker.terminate();
+                    // Do not terminate the persistent worker; just resolve results
                     res(lines);
                 }
             });
@@ -131,6 +134,22 @@ class Stockfish {
         });
     }
 
+    // Expose terminate so external code can stop the worker
+    public terminate(): void {
+        this.worker.terminate();
+    }
+
+    /**
+     * Configure number of threads for this Stockfish instance.
+     */
+    public setThreads(count: number): void {
+        try {
+            this.worker.postMessage("setoption name Threads value " + count);
+            console.log(`Stockfish set to use ${count} threads.`);
+        } catch (e) {
+            console.error("Failed to set Threads option:", e);
+        }
+    }
 }
 
 // Removed Lc0Maia class entirely as it was for lc0-js, not lc0.exe
