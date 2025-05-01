@@ -283,7 +283,7 @@ async function evaluate() {
         logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
     }
 
-    // Evaluate remaining positions using two Stockfish instances (white & black) sharing CPU
+    // Evaluate remaining positions using two Stockfish instances (white & black)
     const hardwareConcurrency = navigator.hardwareConcurrency || 1;
     const totalThreads = Math.max(1, hardwareConcurrency - 1);
     const threadsPerEngine = Math.max(1, Math.floor(totalThreads / 2));
@@ -303,7 +303,6 @@ async function evaluate() {
             promises.push(engineB.evaluate(pos2.fen, depth));
         }
         const results = await Promise.all(promises);
-        // Assign results back
         pos1.topLines = results[0];
         evaluatedCount++;
         if (results.length > 1) {
