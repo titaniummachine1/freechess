@@ -402,8 +402,8 @@ function loadReportCards() {
             classificationRow.appendTo("#classification-count-container");
         }
     } else {
-        $("#black-accuracy").html("100%");
-        $("#white-accuracy").html("100%");
+        $("#black-accuracy").html("0%");
+        $("#white-accuracy").html("0%");
     }
 
     // Remove progress bar and any status message
