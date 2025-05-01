@@ -462,13 +462,25 @@
     ANALYSIS PROGRESS BAR
 */
 #evaluation-progress-bar {
-    display: none !important;
-    appearance: none;
-    margin-top: 10px;
+    display: none;
+    position: relative;
+    background-color: var(--secondary-color);
+    border-radius: 5px;
+    overflow: hidden;
     height: 20px;
     width: 90%;
-    /* animate visibility and background gradient */
-    transition: opacity 0.3s ease, background 0.3s ease;
+    margin-top: 10px;
+}
+
+#evaluation-progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--progress, 0%);
+    background-color: #4caf50;
+    transition: width 0.3s ease-out;
 }
 
 .fa-circle-info {
@@ -497,13 +509,39 @@
     ANALYSIS STATUS MESSAGE (INFO/ERROR)
 */
 #status-message {
+    /* Ensure status message is block and can contain pseudo-element */
     display: none;
-    text-align: center;
-    background-color: var(--primary-color);
+    position: relative;
+    background-color: rgba(49,51,56,1);
     color: white !important;
     border-radius: 10px;
     width: 90%;
     margin-top: 10px;
+    text-align: center;
+    padding: 10px 3px;
+    overflow: hidden;
+}
+
+#status-message.evaluating {
+    /* Remove solid background to reveal pseudo-element */
+    background-color: transparent;
+}
+
+#status-message.evaluating::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--status-progress, 0%);
+    background-color: rgba(76,175,80,0.3);
+    transition: width 0.3s ease-out;
+    z-index: -1;
+}
+
+#status-message:not(.evaluating)::before {
+    /* Hide pseudo-element when not evaluating */
+    display: none;
 }
 
 /*

@@ -127,22 +127,66 @@ async function runMaiaExpanding(
   };
 }
 
+// Smooth progress interpolation state and helpers
+let currentProgress = 0;
+let targetProgress = 0;
+let progressAnimating = false;
+
+function setProgressValue(p: number) {
+    // Update CSS custom properties for smooth animated bar and status
+    const pct = p.toFixed(1) + "%";
+    // Show progress bar container if hidden
+    $("#evaluation-progress-bar").css("display", "block");
+    // Update bar fill via CSS variable
+    $("#evaluation-progress-bar").css("--progress", pct);
+    // Update status message as evaluating
+    $("#status-message")
+        .addClass("evaluating")
+        .css("--status-progress", pct)
+        .html(`Evaluating positions... (${p.toFixed(1)}%)`);
+}
+
+function animateProgress() {
+    progressAnimating = true;
+    const delta = targetProgress - currentProgress;
+    // Ultra-fine threshold for even smoother stop
+    if (Math.abs(delta) < 0.001) {
+        currentProgress = targetProgress;
+        setProgressValue(currentProgress);
+        progressAnimating = false;
+        return;
+    }
+    // Very gentle ease-out for ultra-smooth progression
+    currentProgress += delta * 0.005;
+    setProgressValue(currentProgress);
+    requestAnimationFrame(animateProgress);
+}
+
 function logAnalysisInfo(message: string, progress?: number) {
-    // Show status message container and set padding/color
+    // Base display and styling for status message
     $("#status-message").css("display", "block");
     $("#status-message").css("padding", "10px 3px 10px 3px");
     $("#status-message").css("color", "white");
+    $("#status-message").css("border-radius", "10px");
+    $("#status-message").css("width", "90%");
+    $("#status-message").css("text-align", "center");
 
-    // For evaluation, apply a gradient background according to progress
     if (message.startsWith("Evaluating positions") && progress !== undefined) {
-        const pct = progress.toFixed(1);
-        $("#status-message").css("background", `linear-gradient(to right, rgba(76, 175, 80, 0.3) ${pct}%, rgba(49, 51, 56, 1) ${pct}%)`);
+        // Update target and animate
+        targetProgress = progress;
+        if (!progressAnimating) animateProgress();
     } else {
-        // Default static background
-        $("#status-message").css("background", "rgba(49, 51, 56, 1)");
+        // Non-evaluating: hide progress bar and reset status
+        $("#evaluation-progress-bar").css("display", "none");
+        $("#status-message")
+            .removeClass("evaluating")
+            .css("background", "rgba(49, 51, 56, 1)")
+            .html(message);
+        // Reset progress state
+        targetProgress = 0;
+        currentProgress = 0;
+        progressAnimating = false;
     }
-
-    $("#status-message").html(message);
 }
 
 function logAnalysisError(message: string) {
@@ -161,9 +205,8 @@ function logAnalysisError(message: string) {
 async function evaluate() {
     // Remove and reset CAPTCHA, remove report cards, display progress bar
     $("#report-cards").css("display", "none");
-    // Show and initialize the evaluation progress bar with smooth animation
-    $("#evaluation-progress-bar").css("display", "block");
-    $("#evaluation-progress-bar").attr("value", 0);
+    // Show custom smooth progress bar and reset to 0%
+    setProgressValue(0);
 
     // Disallow evaluation if another evaluation is ongoing
     if (ongoingEvaluation) return;
@@ -292,9 +335,8 @@ async function evaluate() {
 
         position.worker = "cloud";
 
-        let progress =
-            ((positions.indexOf(position) + 1) / positions.length) * 100;
-        $("#evaluation-progress-bar").attr("value", progress);
+        let progress = ((positions.indexOf(position) + 1) / positions.length) * 100;
+        // Animate progress via logAnalysisInfo (interpolated)
         logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`, progress);
     }
 
@@ -303,7 +345,6 @@ async function evaluate() {
         const position = positions[i];
         if (!position.topLines) {
             const progress = ((i + 1) / positions.length) * 100;
-            $("#evaluation-progress-bar").attr("value", progress);
             logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`, progress);
             const engineLines = await engine.evaluate(position.fen, depth);
             position.topLines = engineLines;
@@ -311,7 +352,6 @@ async function evaluate() {
     }
     // All done
     logAnalysisInfo("Evaluation complete.");
-    $("#evaluation-progress-bar").val(100);
     $("#secondary-message").html("");
     evaluatedPositions = positions;
     ongoingEvaluation = false;
