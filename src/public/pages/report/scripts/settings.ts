@@ -4,26 +4,31 @@ const settingsPanel = document.getElementById('depth-container');
 const arrowsCheckbox = document.getElementById('suggestion-arrows-setting') as HTMLInputElement;
 const depthCounter = document.getElementById('depth-counter');
 
-const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string } } = {
+const AVAILABLE_ENGINES: { [key: string]: { name: string, path: string, multiThread: boolean } } = {
     'sf_mt': {
         name: 'Stockfish (Multi-threaded)',
-        path: '/static/scripts/stockfish.js'
+        path: '/static/scripts/stockfish.js',
+        multiThread: true
     },
     'sf16_js': {
         name: 'Stockfish 16 NNUE',
-        path: '/static/scripts/stockfish-nnue-16.js'
+        path: '/static/scripts/stockfish-nnue-16.js',
+        multiThread: false
     },
     'sf17_wasm': {
         name: 'Stockfish 17 (WASM)',
-        path: '/static/scripts/stockfish-17-single.js'
+        path: '/static/scripts/stockfish-17-single.js',
+        multiThread: false
     },
     'sf17_lite': {
         name: 'Stockfish 17 Lite',
-        path: '/static/scripts/stockfish-17-lite-single.js'
+        path: '/static/scripts/stockfish-17-lite-single.js',
+        multiThread: false
     },
     'sf17_asm': {
         name: 'Stockfish 17 (ASM.js)',
-        path: '/static/scripts/stockfish-17-asm.js'
+        path: '/static/scripts/stockfish-17-asm.js',
+        multiThread: false
     }
 };
 

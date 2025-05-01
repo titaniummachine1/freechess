@@ -283,20 +283,24 @@ async function evaluate() {
         logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
     }
 
-    // Evaluate remaining positions using 16 single-threaded engines (round-robin pool)
-    const poolSize = 16;
-    const pool: Stockfish[] = [];
-    for (let i = 0; i < poolSize; i++) {
+    // Configure engines: each entry controls whether to use multi-threading
+    const hw = navigator.hardwareConcurrency || 1;
+    // poolConfig[i].multiThread = true => use all hw threads; false => single thread
+    const poolConfig: { multiThread: boolean }[] = Array.from({ length: 16 }, (_, i) => ({
+        multiThread: i === 0 // only first worker uses all threads by default
+    }));
+    const pool: Stockfish[] = poolConfig.map(cfg => {
         const engine = new Stockfish();
-        engine.setThreads(1); // single thread per worker
-        pool.push(engine);
-    }
+        const threads = cfg.multiThread ? hw : 1;
+        engine.setThreads(threads);
+        return engine;
+    });
     const toEval = positions.filter(p => !p.topLines);
     const totalEvals = toEval.length;
     let evalCount = 0;
     // Dispatch tasks round-robin across the pool
     const tasks = toEval.map((pos, idx) => {
-        const engine = pool[idx % poolSize];
+        const engine = pool[idx % pool.length];
         return engine.evaluate(pos.fen, depth).then(lines => {
             pos.topLines = lines;
             evalCount++; updateProgress(evalCount, totalEvals);
