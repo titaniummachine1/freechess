@@ -438,6 +438,7 @@ function loadReportCards() {
     // Remove progress bar and any status message
     $("#evaluation-progress-bar").css("display", "none");
     $("#status-message").css("display", "none");
+    $("#secondary-message").css("display", "none");  // Hide lingering secondary message
     logAnalysisInfo("");
 }
 
