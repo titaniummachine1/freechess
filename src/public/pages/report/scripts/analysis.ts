@@ -283,44 +283,33 @@ async function evaluate() {
         logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`);
     }
 
-    // Evaluate remaining positions with two persistent engines, each minding its assigned color
-    const hardwareConcurrency = navigator.hardwareConcurrency || 1;
-    const totalThreads = Math.max(1, hardwareConcurrency - 1);
-    const threadsPerEngine = Math.max(1, Math.floor(totalThreads / 2));
-    const engineW = new Stockfish(); engineW.setThreads(threadsPerEngine);
-    const engineB = new Stockfish(); engineB.setThreads(threadsPerEngine);
-    const toEvaluate = positions.filter(pos => !pos.topLines);
-    const totalToEvaluate = toEvaluate.length;
-    let evaluatedCount = 0;
-    // Split into white-to-play and black-to-play positions
-    const whitePositions = toEvaluate.filter(pos => pos.fen.split(' ')[1] === 'w');
-    const blackPositions = toEvaluate.filter(pos => pos.fen.split(' ')[1] === 'b');
-    // Process each color queue in parallel
-    await Promise.all([
-        (async () => {
-            for (const pos of whitePositions) {
-                const lines = await engineW.evaluate(pos.fen, depth);
-                pos.topLines = lines;
-                evaluatedCount++;
-                const progress = (evaluatedCount / totalToEvaluate) * 100;
-                $("#evaluation-progress-bar").val(progress);
-                logAnalysisInfo(`Evaluated moves: ${evaluatedCount}/${totalToEvaluate}`);
-            }
-        })(),
-        (async () => {
-            for (const pos of blackPositions) {
-                const lines = await engineB.evaluate(pos.fen, depth);
-                pos.topLines = lines;
-                evaluatedCount++;
-                const progress = (evaluatedCount / totalToEvaluate) * 100;
-                $("#evaluation-progress-bar").val(progress);
-                logAnalysisInfo(`Evaluated moves: ${evaluatedCount}/${totalToEvaluate}`);
-            }
-        })()
-    ]);
-    engineW.terminate(); engineB.terminate();
-    logAnalysisInfo("Evaluation complete.");
-    $("#evaluation-progress-bar").val(100);
+    // Create a pool of 6 persistent Stockfish workers for local eval
+    const hw = navigator.hardwareConcurrency || 1;
+    const threads = Math.max(1, hw - 1);
+    const poolSize = 6;
+    const threadsPerWorker = Math.max(1, Math.floor(threads / poolSize));
+    const pool: Stockfish[] = [];
+    for (let i = 0; i < poolSize; i++) {
+        const engine = new Stockfish();
+        engine.setThreads(threadsPerWorker);
+        pool.push(engine);
+    }
+    const toEval = positions.filter(pos => !pos.topLines);
+    const total = toEval.length;
+    let done = 0;
+    // Assign each position to a worker round-robin
+    const tasks = toEval.map((pos, i) => {
+        const engine = pool[i % poolSize];
+        return engine.evaluate(pos.fen, depth).then(lines => {
+            pos.topLines = lines;
+            done++;
+            updateProgress(done, total);
+        });
+    });
+    await Promise.all(tasks);
+    // Terminate all pool workers
+    pool.forEach(e => e.terminate());
+    // Finalize
     evaluatedPositions = positions;
     ongoingEvaluation = false;
     generateReportFromEvaluations();
@@ -521,3 +510,9 @@ $("#depth-slider").on("input", () => {
         $("#depth-counter").html(depth + `|<i class="fa-solid fa-hourglass-half" style="color: #ffffff;"></i>`);
     }
 });
+
+function updateProgress(done: number, total: number) {
+  const percent = (done/total)*100;
+  $("#evaluation-progress-bar").val(percent);
+  logAnalysisInfo(`Evaluated moves: ${done}/${total}`);
+}
