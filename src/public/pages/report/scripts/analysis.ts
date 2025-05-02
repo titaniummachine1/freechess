@@ -129,22 +129,20 @@ async function runMaiaExpanding(
 
 // NOTE: Removed JS interpolation helpers; progress fill handled directly via CSS transitions
 
-// Display a status message; if `progress` provided, fill background inline
+// Display a status message; if `progress` provided, animate the green fill using background-size
 function logAnalysisInfo(message: string, progress?: number) {
     const $status = $("#status-message");
-    // Base styling
-    $status.css({ display: "block", padding: "10px 3px", color: "white", background: "rgba(49,51,56,1)", transition: "background-image 0.2s linear" });
-    if (progress !== undefined) {
-        // Show static text
-        $status.text("Evaluating positions...");
-        // Apply inline gradient fill according to progress
-        const pct = progress.toFixed(1);
-        $status.css("background-image", `linear-gradient(to right, #4caf50 ${pct}%, rgba(49,51,56,1) ${pct}%)`);
+    // Show status container
+    $status.css({ display: "block", padding: "10px 3px", color: "white" });
+    // Update status text
+    $status.text(message);
+    if (typeof progress === 'number') {
+        // Animate fill: update background-size to `${progress}% 100%`
+        const sizeVal = `${progress.toFixed(1)}% 100%`;
+        $status.css({ 'background-size': sizeVal });
     } else {
-        // Static info or error
-        $status.text(message);
-        // Remove any fill
-        $status.css("background-image", "none");
+        // Reset fill when no progress
+        $status.css({ 'background-size': '0% 100%', 'background-color': 'var(--primary-color)' });
     }
 }
 
