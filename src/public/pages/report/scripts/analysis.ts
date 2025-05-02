@@ -308,12 +308,16 @@ async function evaluate() {
             position.topLines = engineLines;
         }
     }
-    // All done
-    logAnalysisInfo("Evaluation complete.");
+    // All done: first fill to 100%
+    logAnalysisInfo("Evaluating positions...", 100);
     $("#secondary-message").html("");
     evaluatedPositions = positions;
     ongoingEvaluation = false;
-    generateReportFromEvaluations();
+    // Wait briefly so user sees full bar before completion message
+    setTimeout(() => {
+        logAnalysisInfo("Evaluation complete.");
+        generateReportFromEvaluations();
+    }, 500);
 }
 
 function loadReportCards() {
