@@ -509,8 +509,7 @@
     ANALYSIS STATUS MESSAGE (INFO/ERROR)
 */
 #status-message {
-    /* Ensure status message is block and can contain pseudo-element */
-    display: none;
+    /* Base status message styling */
     position: relative;
     background-color: rgba(49,51,56,1);
     color: white !important;
@@ -522,26 +521,16 @@
     overflow: hidden;
 }
 
+/* When evaluating, overlay a green linear gradient fill */
 #status-message.evaluating {
-    /* Remove solid background to reveal pseudo-element */
-    background-color: transparent;
+    background-image: linear-gradient(to right, #4caf50 0%, #4caf50 100%);
+    background-repeat: no-repeat;
+    background-size: 0 100%;
+    transition: background-size 0.2s ease;
 }
-
-#status-message.evaluating::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: var(--status-progress, 0%);
-    background-color: rgba(76,175,80,0.3);
-    transition: width 0.3s ease-out;
-    z-index: -1;
-}
-
-#status-message:not(.evaluating)::before {
-    /* Hide pseudo-element when not evaluating */
-    display: none;
+/* Remove fill when not evaluating */
+#status-message:not(.evaluating) {
+    background-image: none;
 }
 
 /*

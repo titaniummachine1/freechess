@@ -127,70 +127,28 @@ async function runMaiaExpanding(
   };
 }
 
-// Smooth progress interpolation state and helpers
-let currentProgress = 0;
-let targetProgress = 0;
-let progressAnimating = false;
+// NOTE: Removed JS interpolation helpers; progress fill handled directly via CSS transitions
 
-function setProgressValue(p: number) {
-    // Update CSS custom properties for smooth animated bar and status
-    const pct = p.toFixed(1) + "%";
-    // Show progress bar container if hidden
-    $("#evaluation-progress-bar").css("display", "block");
-    // Update bar fill via CSS variable
-    $("#evaluation-progress-bar").css("--progress", pct);
-    // Update status message as evaluating
-    $("#status-message")
-        .addClass("evaluating")
-        .css("--status-progress", pct)
-        .html(`Evaluating positions... (${p.toFixed(1)}%)`);
-}
-
-function animateProgress() {
-    progressAnimating = true;
-    const delta = targetProgress - currentProgress;
-    // Ultra-fine threshold for even smoother stop
-    if (Math.abs(delta) < 0.001) {
-        currentProgress = targetProgress;
-        setProgressValue(currentProgress);
-        progressAnimating = false;
-        return;
-    }
-    // Very gentle ease-out for ultra-smooth progression
-    currentProgress += delta * 0.005;
-    setProgressValue(currentProgress);
-    requestAnimationFrame(animateProgress);
-}
-
+// Display a status message; if `progress` provided, fill background inline
 function logAnalysisInfo(message: string, progress?: number) {
-    // Base display and styling for status message
-    $("#status-message").css("display", "block");
-    $("#status-message").css("padding", "10px 3px 10px 3px");
-    $("#status-message").css("color", "white");
-    $("#status-message").css("border-radius", "10px");
-    $("#status-message").css("width", "90%");
-    $("#status-message").css("text-align", "center");
-
-    if (message.startsWith("Evaluating positions") && progress !== undefined) {
-        // Update target and animate
-        targetProgress = progress;
-        if (!progressAnimating) animateProgress();
+    const $status = $("#status-message");
+    // Base styling
+    $status.css({ display: "block", padding: "10px 3px", color: "white", background: "rgba(49,51,56,1)", transition: "background-image 0.2s linear" });
+    if (progress !== undefined) {
+        // Show static text
+        $status.text("Evaluating positions...");
+        // Apply inline gradient fill according to progress
+        const pct = progress.toFixed(1);
+        $status.css("background-image", `linear-gradient(to right, #4caf50 ${pct}%, rgba(49,51,56,1) ${pct}%)`);
     } else {
-        // Non-evaluating: hide progress bar and reset status
-        $("#evaluation-progress-bar").css("display", "none");
-        $("#status-message")
-            .removeClass("evaluating")
-            .css("background", "rgba(49, 51, 56, 1)")
-            .html(message);
-        // Reset progress state
-        targetProgress = 0;
-        currentProgress = 0;
-        progressAnimating = false;
+        // Static info or error
+        $status.text(message);
+        // Remove any fill
+        $status.css("background-image", "none");
     }
 }
 
 function logAnalysisError(message: string) {
-    $("#evaluation-progress-bar").css("display", "none");
     $("#secondary-message").html('');
     $("#status-message").css("padding", "10px 3px 10px 3px");
     $("#status-message").css("display", "block");
@@ -205,8 +163,7 @@ function logAnalysisError(message: string) {
 async function evaluate() {
     // Remove and reset CAPTCHA, remove report cards, display progress bar
     $("#report-cards").css("display", "none");
-    // Show custom smooth progress bar and reset to 0%
-    setProgressValue(0);
+    // Initial progress will update on first Evaluating positions call
 
     // Disallow evaluation if another evaluation is ongoing
     if (ongoingEvaluation) return;
@@ -262,6 +219,9 @@ async function evaluate() {
 
     // Create a single persistent Stockfish engine (multi-threaded internally)
     const engine = new Stockfish();
+
+    // Kick off progress bar at 0% immediately
+    logAnalysisInfo("Evaluating positions...", 0);
 
     // Fetch cloud evaluations where possible
     for (let position of positions) {
@@ -335,9 +295,9 @@ async function evaluate() {
 
         position.worker = "cloud";
 
-        let progress = ((positions.indexOf(position) + 1) / positions.length) * 100;
-        // Animate progress via logAnalysisInfo (interpolated)
-        logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`, progress);
+        const progress = ((positions.indexOf(position) + 1) / positions.length) * 100;
+        // Animate progress background on status-message with static text
+        logAnalysisInfo("Evaluating positions...", progress);
     }
 
     // Evaluate remaining positions sequentially using the same engine
@@ -345,7 +305,7 @@ async function evaluate() {
         const position = positions[i];
         if (!position.topLines) {
             const progress = ((i + 1) / positions.length) * 100;
-            logAnalysisInfo(`Evaluating positions... (${progress.toFixed(1)}%)`, progress);
+            logAnalysisInfo("Evaluating positions...", progress);
             const engineLines = await engine.evaluate(position.fen, depth);
             position.topLines = engineLines;
         }
@@ -459,7 +419,6 @@ function loadReportCards() {
     }
 
     // Remove progress bar and any status message
-    $("#evaluation-progress-bar").css("display", "none");
     $("#status-message").css("display", "none");
     $("#secondary-message").css("display", "none");  // Hide lingering secondary message
     logAnalysisInfo("");
