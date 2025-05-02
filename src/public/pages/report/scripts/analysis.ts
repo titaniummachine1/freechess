@@ -159,9 +159,10 @@ function logAnalysisError(message: string) {
 }
 
 async function evaluate() {
-    // Remove and reset CAPTCHA, report cards
+    // Remove and reset CAPTCHA, remove report cards, display progress bar
     $("#report-cards").css("display", "none");
-    
+    // Initial progress will update on first Evaluating positions call
+
     // Disallow evaluation if another evaluation is ongoing
     if (ongoingEvaluation) return;
     ongoingEvaluation = true;
@@ -170,127 +171,156 @@ async function evaluate() {
     let pgn = $("#pgn").val()!.toString();
     let depth = parseInt($("#depth-slider").val()!.toString());
 
-    // Validate PGN
+    // Content validate PGN input
     if (pgn.length == 0) {
         return logAnalysisError("Provide a game to analyse.");
     }
 
-    // Post PGN to parse
+    // Post PGN to server to have it parsed
     $("#status-message").css("padding", "10px 3px 10px 3px");
     logAnalysisInfo("Parsing PGN...");
 
-    let positions: Position[];
     try {
-      const parseResponse = await fetch("/api/parse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pgn }) });
-      const parsedPGN: ParseResponse = await parseResponse.json();
-      if (!parseResponse.ok) {
-        return logAnalysisError(parsedPGN.message ?? "Failed to parse PGN.");
-      }
-      positions = parsedPGN.positions!;
+        let parseResponse = await fetch("/api/parse", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ pgn }),
+        });
+
+        let parsedPGN: ParseResponse = await parseResponse.json();
+
+        if (!parseResponse.ok) {
+            return logAnalysisError(
+                parsedPGN.message ?? "Failed to parse PGN.",
+            );
+        }
+
+        var positions = parsedPGN.positions!;
     } catch {
-      return logAnalysisError("Failed to parse PGN.");
+        return logAnalysisError("Failed to parse PGN.");
     }
 
-    // Create two persistent engines, one for each side
-    const engineWhite = new Stockfish();
-    const engineBlack = new Stockfish();
+    // Update board player usernames
+    whitePlayer.username =
+        pgn.match(/(?:\[White ")(.+)(?="\])/)?.[1] ?? "White Player";
+    whitePlayer.rating = pgn.match(/(?:\[WhiteElo ")(.+)(?="\])/)?.[1] ?? "?";
 
-    // Kick off progress at 0%
+    blackPlayer.username =
+        pgn.match(/(?:\[Black ")(.+)(?="\])/)?.[1] ?? "Black Player";
+    blackPlayer.rating = pgn.match(/(?:\[BlackElo ")(.+)(?="\])/)?.[1] ?? "?";
+
+    updateBoardPlayers();
+
+    $("#secondary-message").html("It can take around a minute to process a full game.");
+
+    // Create a single persistent Stockfish engine (multi-threaded internally)
+    const engine = new Stockfish();
+
+    // Kick off progress bar at 0% immediately
     logAnalysisInfo("Evaluating positions...", 0);
 
-    // Function to pick correct engine by turn
-    const pickEngine = (fen: string) => fen.includes(' b ') ? engineWhite : engineBlack;
-
-    // Cloud evaluations
+    // Fetch cloud evaluations where possible
     for (let position of positions) {
-      function placeCutoff(pos: Position) {
-        const lastPosition = positions[positions.indexOf(pos) - 1];
-        if (!lastPosition) return;
-        const engineInst = pickEngine(lastPosition.fen);
-        engineInst.evaluate(lastPosition.fen, depth).then((engineLines: EngineLine[]) => {
-          lastPosition.cutoffEvaluation = engineLines.find(line => line.id == 1)?.evaluation ?? { type: "cp", value: 0 };
+        function placeCutoff(pos: Position) {
+            let lastPosition = positions[positions.indexOf(pos) - 1];
+            if (!lastPosition) return;
+
+            // Use the persistent engine for cutoff evaluation
+            engine
+                .evaluate(lastPosition.fen, depth)
+                .then((engineLines) => {
+                    lastPosition.cutoffEvaluation = engineLines.find(
+                        (line) => line.id == 1,
+                    )?.evaluation ?? { type: "cp", value: 0 };
+                });
+        }
+
+        let queryFen = position.fen.replace(/\s/g, "%20");
+        let cloudEvaluationResponse;
+        let url = `https://lichess.org/api/cloud-eval?fen=${queryFen}&multiPv=2`;
+        console.log(url)
+        try {
+            cloudEvaluationResponse = await fetch(
+                url,
+                {
+                    method: "GET",
+                },
+            );
+
+            if (!cloudEvaluationResponse) break;
+        } catch {
+            break;
+        }
+
+        if (!cloudEvaluationResponse.ok) {
+            placeCutoff(position);
+            break;
+        }
+
+        let cloudEvaluation = await cloudEvaluationResponse.json();
+
+        position.topLines = cloudEvaluation.pvs.map((pv: any, id: number) => {
+            const evaluationType = pv.cp == undefined ? "mate" : "cp";
+            const evaluationScore = pv.cp ?? pv.mate ?? "cp";
+
+            let line: EngineLine = {
+                id: id + 1,
+                depth: depth,
+                moveUCI: pv.moves.split(" ")[0] ?? "",
+                evaluation: {
+                    type: evaluationType,
+                    value: evaluationScore,
+                },
+            };
+
+            let cloudUCIFixes: { [key: string]: string } = {
+                e8h8: "e8g8",
+                e1h1: "e1g1",
+                e8a8: "e8c8",
+                e1a1: "e1c1",
+            };
+            line.moveUCI = cloudUCIFixes[line.moveUCI] ?? line.moveUCI;
+
+            return line;
         });
-      }
 
-      let queryFen = position.fen.replace(/\s/g, "%20");
-      let cloudEvaluationResponse;
-      let url = `https://lichess.org/api/cloud-eval?fen=${queryFen}&multiPv=2`;
-      console.log(url)
-      try {
-        cloudEvaluationResponse = await fetch(
-          url,
-          {
-            method: "GET",
-          },
-        );
+        if (position.topLines?.length != 2) {
+            placeCutoff(position);
+            break;
+        }
 
-        if (!cloudEvaluationResponse) break;
-      } catch {
-        break;
-      }
+        position.worker = "cloud";
 
-      if (!cloudEvaluationResponse.ok) {
-        placeCutoff(position);
-        break;
-      }
-
-      let cloudEvaluation = await cloudEvaluationResponse.json();
-
-      position.topLines = cloudEvaluation.pvs.map((pv: any, id: number) => {
-        const evaluationType = pv.cp == undefined ? "mate" : "cp";
-        const evaluationScore = pv.cp ?? pv.mate ?? "cp";
-
-        let line: EngineLine = {
-          id: id + 1,
-          depth: depth,
-          moveUCI: pv.moves.split(" ")[0] ?? "",
-          evaluation: {
-            type: evaluationType,
-            value: evaluationScore,
-          },
-        };
-
-        let cloudUCIFixes: { [key: string]: string } = {
-          e8h8: "e8g8",
-          e1h1: "e1g1",
-          e8a8: "e8c8",
-          e1a1: "e1c1",
-        };
-        line.moveUCI = cloudUCIFixes[line.moveUCI] ?? line.moveUCI;
-
-        return line;
-      });
-
-      if (position.topLines?.length != 2) {
-        placeCutoff(position);
-        break;
-      }
-
-      position.worker = "cloud";
-      const progress = ((positions.indexOf(position) + 1) / positions.length) * 100;
-      logAnalysisInfo("Evaluating positions...", progress);
-    }
-
-    // Fallback engine evaluations
-    for (let i = 0; i < positions.length; i++) {
-      const position = positions[i];
-      if (!position.topLines) {
-        const progress = ((i + 1) / positions.length) * 100;
+        const progress = ((positions.indexOf(position) + 1) / positions.length) * 100;
+        // Animate progress background on status-message with static text
         logAnalysisInfo("Evaluating positions...", progress);
-        const engineInst = pickEngine(position.fen);
-        const engineLines = await engineInst.evaluate(position.fen, depth);
-        position.topLines = engineLines;
-      }
     }
 
-    // Ensure full bar before completion
+    // Evaluate remaining positions sequentially using the same engine
+    for (let i = 0; i < positions.length; i++) {
+        const position = positions[i];
+        if (!position.topLines) {
+            const progress = ((i + 1) / positions.length) * 100;
+            logAnalysisInfo("Evaluating positions...", progress);
+            const engineLines = await engine.evaluate(position.fen, depth);
+            position.topLines = engineLines;
+        }
+    }
+    // All done: first fill to 100%
     logAnalysisInfo("Evaluating positions...", 100);
     $("#secondary-message").html("");
     evaluatedPositions = positions;
     ongoingEvaluation = false;
+    // Wait briefly so user sees full bar before updating to completion text (keep bar at 100%)
     setTimeout(() => {
-      logAnalysisInfo("Evaluation complete.");
-      generateReportFromEvaluations();
+        const $status = $("#status-message");
+        // Keep green fill at 100%
+        $status.css({ "background-size": "100% 100%" });
+        // Update status text without clearing fill
+        $status.text("Evaluation complete.");
+        generateReportFromEvaluations();
     }, 500);
 }
 
