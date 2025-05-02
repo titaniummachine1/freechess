@@ -526,6 +526,13 @@
     transition: background-size 0.5s ease-out;
 }
 
+/* Hide status-message container when there's no text */
+#status-message:empty {
+    display: none !important;
+    margin: 0;
+    padding: 0;
+}
+
 /*
     RECAPTCHA COMPONENT
 */

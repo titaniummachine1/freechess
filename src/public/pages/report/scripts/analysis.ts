@@ -420,10 +420,11 @@ function loadReportCards() {
         $("#white-accuracy").html("0%");
     }
 
-    // Remove progress bar and any status message
+    // Remove progress bar and any status messages
+    $("#evaluation-progress-bar").css("display", "none");
     $("#status-message").css("display", "none");
     $("#secondary-message").css("display", "none");  // Hide lingering secondary message
-    logAnalysisInfo("");
+    // No additional status update to avoid blank block
 }
 
 async function generateReportFromEvaluations() {
